@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
+
+	"sbk.wtf/runj/jail"
 
 	"github.com/spf13/cobra"
 )
@@ -36,8 +39,11 @@ func createCommand() *cobra.Command {
 		Short: "Create a new container with given ID and bundle",
 		Long:  "Create a new container with given ID and bundle.  IDs must be unique.",
 		Args:  cobra.ExactArgs(2),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println(args)
+			id := args[0]
+			bundle := args[1]
+			return jail.CreateConfig(id, filepath.Join(bundle, "root"))
 		},
 	}
 }
