@@ -1,4 +1,4 @@
-SOURCES := $(shell find . -name '*.go')
+SOURCES != find . -name '*.go'
 
 all: runj
 
