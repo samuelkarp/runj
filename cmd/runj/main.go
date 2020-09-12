@@ -14,5 +14,6 @@ func main() {
 	rootCmd.AddCommand(startCommand())
 	rootCmd.AddCommand(killCommand())
 	rootCmd.AddCommand(deleteCommand())
+	rootCmd.AddCommand(demoCommand())
 	rootCmd.Execute()
 }
