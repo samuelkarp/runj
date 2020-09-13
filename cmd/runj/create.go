@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"sbk.wtf/runj/jail"
@@ -39,11 +41,26 @@ func createCommand() *cobra.Command {
 		Short: "Create a new container with given ID and bundle",
 		Long:  "Create a new container with given ID and bundle.  IDs must be unique.",
 		Args:  cobra.ExactArgs(2),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			bundle := args[1]
+			fInfo, err := os.Stat(bundle)
+			if err != nil {
+				return err
+			}
+			if !fInfo.IsDir() {
+				return errors.New("bundle should be a directory")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println(args)
 			id := args[0]
 			bundle := args[1]
-			return jail.CreateConfig(id, filepath.Join(bundle, "root"))
+			confPath, err := jail.CreateConfig(id, filepath.Join(bundle, "root"))
+			if err != nil {
+				return err
+			}
+			return jail.CreateJail(cmd.Context(), confPath)
 		},
 	}
 }
