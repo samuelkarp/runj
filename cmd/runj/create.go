@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"sbk.wtf/runj/jail"
+	"go.sbk.wtf/runj/jail"
 
 	"github.com/spf13/cobra"
 )

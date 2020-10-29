@@ -1,4 +1,4 @@
-module sbk.wtf/runj
+module go.sbk.wtf/runj
 
 go 1.14
 

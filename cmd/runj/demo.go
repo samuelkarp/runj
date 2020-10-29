@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"sbk.wtf/runj/demo"
-	"sbk.wtf/runj/oci"
+	"go.sbk.wtf/runj/demo"
+	"go.sbk.wtf/runj/oci"
 
 	pb "github.com/cheggaaa/pb/v3"
 	"github.com/spf13/cobra"
