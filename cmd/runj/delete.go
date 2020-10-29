@@ -1,7 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"os"
+
+	"go.sbk.wtf/runj/jail"
 
 	"github.com/spf13/cobra"
 )
@@ -22,8 +26,25 @@ func deleteCommand() *cobra.Command {
 		Use:   "delete <container-id>",
 		Short: "Delete a container",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(args)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			disableUsage(cmd)
+			id := args[0]
+			running, err := jail.IsRunning(cmd.Context(), id)
+			if err != nil {
+				return fmt.Errorf("delete: failed to determine if jail is running: %w", err)
+			}
+			if running {
+				return fmt.Errorf("delete: jail %s is not stopped", id)
+			}
+			confPath := jail.ConfPath(id)
+			if _, err := os.Stat(confPath); err != nil {
+				return errors.New("invalid jail id provided")
+			}
+			err = jail.DestroyJail(cmd.Context(), confPath, id)
+			if err != nil {
+				return err
+			}
+			return jail.RemoveConfig(id)
 		},
 	}
 }

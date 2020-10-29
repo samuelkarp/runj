@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 )
 
@@ -19,5 +21,12 @@ func main() {
 	rootCmd.AddCommand(killCommand())
 	rootCmd.AddCommand(deleteCommand())
 	rootCmd.AddCommand(demoCommand())
-	rootCmd.Execute()
+	err := rootCmd.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
+}
+
+func disableUsage(cmd *cobra.Command) {
+	cmd.SetUsageFunc(func(*cobra.Command) error { return nil })
 }
