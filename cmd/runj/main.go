@@ -4,6 +4,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	specConfig = "config.json"
+)
+
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "runj <command>",

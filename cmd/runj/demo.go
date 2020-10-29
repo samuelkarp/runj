@@ -1,11 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"sbk.wtf/runj/demo"
+	"sbk.wtf/runj/oci"
 
 	pb "github.com/cheggaaa/pb/v3"
 	"github.com/spf13/cobra"
@@ -19,6 +23,7 @@ func demoCommand() *cobra.Command {
 		Short: "runj demos",
 	}
 	demo.AddCommand(downloadRootfsCommand())
+	demo.AddCommand(specCommand())
 	return demo
 }
 
@@ -66,4 +71,58 @@ func downloadRootfsCommand() *cobra.Command {
 		return err
 	}
 	return dl
+}
+
+func specCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "spec",
+		Short: "generate an example config.json spec file",
+		Long: `The spec command creates a new example config.json spec file for the bundle.
+
+The spec generated is just a starter file. Editing of the spec is required to
+achieve desired results. For example, the newly generated spec includes an args
+parameter that is initially set to call the "sh" command when the container is
+started.`,
+	}
+	bundlePath := cmd.Flags().StringP("bundle", "b", "", "Path to the bundle")
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		spec := exampleSpec()
+		if *bundlePath != "" {
+			if err := os.Chdir(filepath.Clean(*bundlePath)); err != nil {
+				return err
+			}
+		}
+		if err := checkNoFile(specConfig); err != nil {
+			return err
+		}
+		data, err := json.MarshalIndent(spec, "", "  ")
+		if err != nil {
+			return err
+		}
+		return ioutil.WriteFile(specConfig, data, 0666)
+	}
+	return cmd
+}
+
+func exampleSpec() *oci.Spec {
+	return &oci.Spec{
+		Version: oci.Version,
+		Process: &oci.Process{
+			Args: []string{"sh"},
+		},
+		Root: &oci.Root{
+			Path: "rootfs",
+		},
+	}
+}
+
+func checkNoFile(path string) error {
+	_, err := os.Stat(path)
+	if err == nil {
+		return fmt.Errorf("%s exists. Remove it first", path)
+	}
+	if !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }

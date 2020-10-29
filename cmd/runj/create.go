@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -43,12 +42,13 @@ func createCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			bundle := args[1]
-			fInfo, err := os.Stat(bundle)
+			bundleConfig := filepath.Join(bundle, specConfig)
+			fInfo, err := os.Stat(bundleConfig)
 			if err != nil {
 				return err
 			}
-			if !fInfo.IsDir() {
-				return errors.New("bundle should be a directory")
+			if fInfo.Mode()&os.ModeType != 0 {
+				return fmt.Errorf("%q should be a regular file", bundleConfig)
 			}
 			return nil
 		},
