@@ -10,6 +10,10 @@ const (
 	stateDir        = defaultStateDir
 )
 
+func Create(id string) error {
+	return os.MkdirAll(Dir(id), 0755)
+}
+
 func Dir(id string) string {
 	return filepath.Join(stateDir, id)
 }

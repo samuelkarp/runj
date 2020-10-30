@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.sbk.wtf/runj/oci"
+
 	"go.sbk.wtf/runj/runtimespec"
 
 	"go.sbk.wtf/runj/demo"
@@ -93,14 +95,14 @@ started.`,
 				return err
 			}
 		}
-		if err := checkNoFile(specConfig); err != nil {
+		if err := checkNoFile(oci.ConfigFileName); err != nil {
 			return err
 		}
 		data, err := json.MarshalIndent(spec, "", "  ")
 		if err != nil {
 			return err
 		}
-		return ioutil.WriteFile(specConfig, data, 0666)
+		return ioutil.WriteFile(oci.ConfigFileName, data, 0666)
 	}
 	return cmd
 }

@@ -20,8 +20,10 @@ func startCommand() *cobra.Command {
 		Use:   "start <container-id>",
 		Short: "Start a container",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			disableUsage(cmd)
 			fmt.Println(args)
+			return nil
 		},
 	}
 }

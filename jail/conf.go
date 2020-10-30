@@ -2,9 +2,7 @@ package jail
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -27,16 +25,22 @@ func CreateConfig(id, root string) (string, error) {
 		return "", err
 	}
 	fmt.Println(config)
-	jailPath := state.Dir(id)
-	err = os.MkdirAll(jailPath, 0755)
+	confPath := ConfPath(id)
+	confFile, err := os.OpenFile(confPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+	if err != nil {
+		return "", fmt.Errorf("jail: config should not already exist: %w", err)
+	}
+	defer func() {
+		confFile.Close()
+		if err != nil {
+			os.Remove(confFile.Name())
+		}
+	}()
+	_, err = confFile.Write([]byte(config))
 	if err != nil {
 		return "", err
 	}
-	confPath := ConfPath(id)
-	if _, err := os.Stat(confPath); err == nil {
-		return "", errors.New("config should not already exist")
-	}
-	return confPath, ioutil.WriteFile(confPath, []byte(config), 0644)
+	return confFile.Name(), nil
 }
 
 func ConfPath(id string) string {
