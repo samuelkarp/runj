@@ -14,6 +14,8 @@ const (
 	confName       = "jail.conf"
 	configTemplate = `{{ .Name }} {
   path = "{{ .Root }}";
+  devfs_ruleset = 4;
+  mount.devfs;
   persist;
 }
 `
