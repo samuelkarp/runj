@@ -1,7 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"errors"
+
+	"go.sbk.wtf/runj/jail"
+	"go.sbk.wtf/runj/oci"
 
 	"github.com/spf13/cobra"
 )
@@ -15,15 +18,26 @@ import (
 // the container and MUST generate an error. This operation MUST run the
 // user-specified program as specified by process. This operation MUST generate
 // an error if process was not set.
+//
+// runc's implementation of the start command exits immediately after starting
+// the container's process.  This does not appear to be specified in the spec.
 func startCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start <container-id>",
-		Short: "Start a container",
+		Short: "Start a jail",
+		Long:  "The start command executes the user-defined process in a created jail",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			disableUsage(cmd)
-			fmt.Println(args)
-			return nil
+			id := args[0]
+			ociConfig, err := oci.LoadConfig(id)
+			if err != nil {
+				return err
+			}
+			if ociConfig == nil || ociConfig.Process == nil || len(ociConfig.Process.Args) == 0 {
+				return errors.New("start: missing process")
+			}
+			return jail.ExecAsync(id, ociConfig.Process.Args)
 		},
 	}
 }
