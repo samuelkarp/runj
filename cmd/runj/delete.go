@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"go.sbk.wtf/runj/state"
+
 	"go.sbk.wtf/runj/jail"
 
 	"github.com/spf13/cobra"
@@ -44,7 +46,7 @@ func deleteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return jail.RemoveConfig(id)
+			return state.Remove(id)
 		},
 	}
 }

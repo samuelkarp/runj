@@ -2,7 +2,7 @@ runj
 Copyright 2020 Samuel Karp
 
 This project bundles portions of the Open Container Initiative runtime
-specification under the Apache License 2.0.  For details, see the "oci"
+specification under the Apache License 2.0.  For details, see the "runtimespec"
 directory.
 
 When compiled as a binary and statically linked, this project bundles libraries

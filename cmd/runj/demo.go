@@ -8,8 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.sbk.wtf/runj/runtimespec"
+
 	"go.sbk.wtf/runj/demo"
-	"go.sbk.wtf/runj/oci"
 
 	pb "github.com/cheggaaa/pb/v3"
 	"github.com/spf13/cobra"
@@ -104,13 +105,13 @@ started.`,
 	return cmd
 }
 
-func exampleSpec() *oci.Spec {
-	return &oci.Spec{
-		Version: oci.Version,
-		Process: &oci.Process{
+func exampleSpec() *runtimespec.Spec {
+	return &runtimespec.Spec{
+		Version: runtimespec.Version,
+		Process: &runtimespec.Process{
 			Args: []string{"sh"},
 		},
-		Root: &oci.Root{
+		Root: &runtimespec.Root{
 			Path: "rootfs",
 		},
 	}

@@ -8,13 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+
+	"go.sbk.wtf/runj/state"
 )
 
 const (
-	defaultStateDir = "/var/lib/runj/jails"
-	stateDir        = defaultStateDir
-	confName        = "jail.conf"
-	configTemplate  = `{{ .Name }} {
+	confName       = "jail.conf"
+	configTemplate = `{{ .Name }} {
   path = "{{ .Root }}";
   persist;
 }
@@ -27,7 +27,7 @@ func CreateConfig(id, root string) (string, error) {
 		return "", err
 	}
 	fmt.Println(config)
-	jailPath := filepath.Join(stateDir, id)
+	jailPath := state.Dir(id)
 	err = os.MkdirAll(jailPath, 0755)
 	if err != nil {
 		return "", err
@@ -40,7 +40,7 @@ func CreateConfig(id, root string) (string, error) {
 }
 
 func ConfPath(id string) string {
-	return filepath.Join(stateDir, id, confName)
+	return filepath.Join(state.Dir(id), confName)
 }
 
 func renderConfig(id, root string) (string, error) {
@@ -57,8 +57,4 @@ func renderConfig(id, root string) (string, error) {
 		Root: root,
 	})
 	return buf.String(), nil
-}
-
-func RemoveConfig(id string) error {
-	return os.RemoveAll(filepath.Join(stateDir, id))
 }
