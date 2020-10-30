@@ -5,11 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"go.sbk.wtf/runj/oci"
-
-	"go.sbk.wtf/runj/state"
-
 	"go.sbk.wtf/runj/jail"
+	"go.sbk.wtf/runj/oci"
+	"go.sbk.wtf/runj/runtimespec"
+	"go.sbk.wtf/runj/state"
 
 	"github.com/spf13/cobra"
 )
@@ -69,12 +68,24 @@ func createCommand() *cobra.Command {
 					state.Remove(id)
 				}
 			}()
-			var confPath string
-			confPath, err = jail.CreateConfig(id, filepath.Join(bundle, "root"))
+			err = oci.StoreConfig(id, bundle)
 			if err != nil {
 				return err
 			}
-			err = oci.StoreConfig(id, bundle)
+			var ociConfig *runtimespec.Spec
+			ociConfig, err = oci.LoadConfig(id)
+			if err != nil {
+				return err
+			}
+			rootPath := filepath.Join(bundle, "root")
+			if ociConfig != nil && ociConfig.Root != nil && ociConfig.Root.Path != "" {
+				rootPath = ociConfig.Root.Path
+				if rootPath[0] != filepath.Separator {
+					rootPath = filepath.Join(bundle, rootPath)
+				}
+			}
+			var confPath string
+			confPath, err = jail.CreateConfig(id, rootPath)
 			if err != nil {
 				return err
 			}
