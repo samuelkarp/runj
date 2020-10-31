@@ -14,9 +14,15 @@ runj is in early development and exists primarily as a skeleton.
 
 runj currently supports the following parts of the OCI runtime spec:
 
-* Lifecycle
+* Commands
   - Create
   - Delete
+  - Start
+  - State
+  - Kill
+* Config
+  - Root path
+  - Process args
 
 ## Getting started
 
@@ -47,11 +53,32 @@ added to the upstream specification.  For now, the extensions are documented
 
 You can use `runj demo spec` to generate an example config file for your bundle.
 
+Once you have a config file, edit the root path and process args to your desired
+values.
+
+#### Lifecycle
+
+Create a container with `runj create $ID $BUNDLE` where `$ID` is the identifier
+you picked for your container and `$BUNDLE` is the bundle directory with a valid
+`config.json`.
+
+Start your container with `runj start $ID`.  The process defined in the
+`config.json` will be started.
+
+Inspect the state of your container with `runj state $ID`.
+
+Send a signal to your container process (or all processes in the container) with
+`runj kill $ID`.
+
+Remove your container with `runj delete $ID`.
+
 ## Implementation details
 
 runj uses FreeBSD's userland utilities for managing jails; it does not directly
 invoke the jail-related syscalls.  You must have working versions of `jail(8)`,
-`jls(8)`, `jexec(8)`, and `ps(1)` installed on your system.
+`jls(8)`, `jexec(8)`, and `ps(1)` installed on your system.  `runj kill` makes
+use of the `kill(1)` command inside the jail's rootfs; if this command does not
+exist (or is not functional), `runj kill` will not work.
 
 ## Future
 
