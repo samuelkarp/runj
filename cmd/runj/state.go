@@ -55,6 +55,7 @@ func stateCommand() *cobra.Command {
 		Short: "Query the state of a container",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			disableUsage(cmd)
 			id := args[0]
 			s, err := state.Load(id)
 			if err != nil {
