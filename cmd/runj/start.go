@@ -42,10 +42,18 @@ func startCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = jail.ExecAsync(id, ociConfig.Process.Args)
+			if s.Status == state.StatusRunning {
+				if ok, err := jail.IsRunning(cmd.Context(), id); ok {
+					return errors.New("cannot start already running container")
+				} else if err != nil {
+					return err
+				}
+			}
+			pid, err := jail.ExecAsync(id, ociConfig.Process.Args)
 			if err != nil {
 				return err
 			}
+			s.PID = pid
 			s.Status = state.StatusRunning
 			return s.Save()
 		},

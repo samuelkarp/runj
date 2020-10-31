@@ -67,6 +67,7 @@ func stateCommand() *cobra.Command {
 				}
 				if !ok {
 					s.Status = state.StatusStopped
+					s.PID = 0
 					err = s.Save()
 					if err != nil {
 						return err
@@ -77,6 +78,7 @@ func stateCommand() *cobra.Command {
 				OCIVersion: runtimespec.Version,
 				ID:         id,
 				Status:     string(s.Status),
+				PID:        s.PID,
 				Bundle:     s.Bundle,
 			}
 			b, err := json.MarshalIndent(output, "", "  ")
