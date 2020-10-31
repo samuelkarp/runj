@@ -5,6 +5,7 @@ import (
 
 	"go.sbk.wtf/runj/jail"
 	"go.sbk.wtf/runj/oci"
+	"go.sbk.wtf/runj/state"
 
 	"github.com/spf13/cobra"
 )
@@ -37,7 +38,16 @@ func startCommand() *cobra.Command {
 			if ociConfig == nil || ociConfig.Process == nil || len(ociConfig.Process.Args) == 0 {
 				return errors.New("start: missing process")
 			}
-			return jail.ExecAsync(id, ociConfig.Process.Args)
+			s, err := state.Load(id)
+			if err != nil {
+				return err
+			}
+			err = jail.ExecAsync(id, ociConfig.Process.Args)
+			if err != nil {
+				return err
+			}
+			s.Status = state.StatusRunning
+			return s.Save()
 		},
 	}
 }

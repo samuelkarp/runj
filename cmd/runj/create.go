@@ -41,8 +41,16 @@ func createCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "create <container-id> <path-to-bundle>",
 		Short: "Create a new container with given ID and bundle",
-		Long:  "Create a new container with given ID and bundle.  IDs must be unique.",
-		Args:  cobra.ExactArgs(2),
+		Long: `Create a new container with given ID and bundle.  IDs must be unique.
+
+The create command creates an instance of a container for a bundle. The bundle
+is a directory with a specification file named "config.json" and a root
+filesystem.
+
+The specification file includes an args parameter. The args parameter is used
+to specify command(s) that get run when the container is started. To change the
+command(s) that get executed on start, edit the args parameter of the spec.`,
+		Args: cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			bundle := args[1]
 			bundleConfig := filepath.Join(bundle, oci.ConfigFileName)
@@ -59,12 +67,16 @@ func createCommand() *cobra.Command {
 			disableUsage(cmd)
 			id := args[0]
 			bundle := args[1]
-			err = state.Create(id)
+			var s *state.State
+			s, err = state.Create(id, bundle)
 			if err != nil {
 				return err
 			}
 			defer func() {
-				if err != nil {
+				if err == nil {
+					s.Status = state.StatusCreated
+					err = s.Save()
+				} else {
 					state.Remove(id)
 				}
 			}()

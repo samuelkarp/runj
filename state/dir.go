@@ -10,8 +10,21 @@ const (
 	stateDir        = defaultStateDir
 )
 
-func Create(id string) error {
-	return os.MkdirAll(Dir(id), 0755)
+func Create(id, bundle string) (*State, error) {
+	s := &State{
+		ID:     id,
+		Bundle: bundle,
+		Status: StatusCreating,
+	}
+	err := os.MkdirAll(Dir(id), 0755)
+	if err != nil {
+		return nil, err
+	}
+	err = s.Save()
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 func Dir(id string) string {
