@@ -39,6 +39,17 @@ func Load(id string) (*State, error) {
 	return s, nil
 }
 
+// initialize creates the original state file, checking for existence and
+// failing if one already exists.  Initialize should be used as a guard to
+// prevent overwriting a state file for an existing container.
+func (s *State) initialize() error {
+	_, err := os.OpenFile(filepath.Join(Dir(s.ID), stateFile), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	return s.Save()
+}
+
 func (s *State) Save() error {
 	f, err := ioutil.TempFile(Dir(s.ID), "state")
 	if err != nil {
