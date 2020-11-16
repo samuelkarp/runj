@@ -10,7 +10,7 @@ that have been made in runj.
 ## Directories
 runj makes use of a state directory located at `/var/lib/runj`.  Directories for
 individual jails exist underneath this one and contain a `jail.conf(5)` file as
-well as a copy of the OCI configuration provided in the bundle.
+well as a copy of the OCI configuration provided in the bundle.  
 
 ## Default jail configuration
 

@@ -49,11 +49,10 @@ func startCommand() *cobra.Command {
 					return err
 				}
 			}
-			pid, err := jail.ExecAsync(id, ociConfig.Process.Args)
+			err = jail.AwaitFifoOpen(cmd.Context(), id)
 			if err != nil {
 				return err
 			}
-			s.PID = pid
 			s.Status = state.StatusRunning
 			return s.Save()
 		},

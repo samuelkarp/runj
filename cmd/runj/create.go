@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"go.sbk.wtf/runj/jail"
@@ -37,6 +38,11 @@ import (
 //
 // Any changes made to the config.json file after this operation will not have
 // an effect on the container.
+//
+// runc's implementation of `create` hooks up the container process's STDIO to
+// the same STDIO streams used for the invocation  of `runc create`.  Because
+// integrations on top of runc expect this behavior, runj copies that at the
+// expense of more complication in the codebase.
 func createCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "create <container-id> <path-to-bundle>",
@@ -101,7 +107,21 @@ command(s) that get executed on start, edit the args parameter of the spec.`,
 			if err != nil {
 				return err
 			}
-			return jail.CreateJail(cmd.Context(), confPath)
+			if err := jail.CreateJail(cmd.Context(), confPath); err != nil {
+				return err
+			}
+
+			// Setup and start the "runj-entrypoint" helper program in order to
+			// get the container STDIO hooked up properly.
+			var entrypoint *exec.Cmd
+			entrypoint, err = jail.SetupEntrypoint(id, ociConfig.Process.Args)
+			if err != nil {
+				return err
+			}
+			// the runj-entrypoint pid will become the container process's pid
+			// through a series of exec(2) calls
+			s.PID = entrypoint.Process.Pid
+			return nil
 		},
 	}
 }
