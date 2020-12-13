@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,6 +28,7 @@ func demoCommand() *cobra.Command {
 	}
 	demo.AddCommand(downloadRootfsCommand())
 	demo.AddCommand(specCommand())
+	demo.AddCommand(imageCommand())
 	return demo
 }
 
@@ -61,19 +63,66 @@ func downloadRootfsCommand() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Downloading image for %s %s into %s\n", *arch, *version, *outputFilename)
-		rootfs, rootLen, err := demo.DownloadRootfs(*arch, *version)
-		if err != nil {
-			return err
-		}
-		defer rootfs.Close()
-		bar := pb.Full.Start64(rootLen)
-		barReader := bar.NewProxyReader(rootfs)
-		_, err = io.Copy(f, barReader)
-		bar.Finish()
-		return err
+		return downloadImage(*arch, *version, f)
 	}
 	return dl
+}
+
+func imageCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "oci-image [--input | --architecture <arch> --version <version>]",
+		Short: "Create an OCI image",
+		Long:  "Create an OCI image, optionally downloading if a rootfs file is not already present",
+	}
+	arch := cmd.Flags().StringP("architecture", "a", "", "CPU architecture, like amd64")
+	version := cmd.Flags().StringP("version", "v", "", "FreeBSD version, like 12-RELEASE")
+	inputFilename := cmd.Flags().StringP("input", "i", "", "Input rootfs (txz format)")
+	outputFilename := cmd.Flags().StringP("output", "o", "image.tar", "Output filename")
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if (*arch == "" || *version == "") && *inputFilename == "" {
+			return errors.New("missing required arguments; either provide --input or (--architecture and --version)")
+		}
+		if *inputFilename != "" && (*arch != "" || *version != "") {
+			return errors.New("cannot provide --input and (--architecture or --version)")
+		}
+		return nil
+	}
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		disableUsage(cmd)
+		if *inputFilename == "" {
+			tempFile, err := ioutil.TempFile("", "freebsd-image-")
+			if err != nil {
+				return err
+			}
+			defer func() {
+				tempFile.Close()
+				os.Remove(tempFile.Name())
+			}()
+			err = downloadImage(*arch, *version, tempFile)
+			if err != nil {
+				return err
+			}
+			*inputFilename = tempFile.Name()
+		}
+		fmt.Printf("Creating OCI image in file %s\n", *outputFilename)
+		return demo.MakeImage(*inputFilename, *outputFilename, *arch)
+	}
+	return cmd
+}
+
+func downloadImage(arch, version string, f *os.File) error {
+	fmt.Printf("Downloading image for %s %s into %s\n", arch, version, f.Name())
+	rootfs, rootLen, err := demo.DownloadRootfs(arch, version)
+	if err != nil {
+		return err
+	}
+	defer rootfs.Close()
+	bar := pb.Full.Start64(rootLen)
+	barReader := bar.NewProxyReader(rootfs)
+	_, err = io.Copy(f, barReader)
+	bar.Finish()
+	return err
+
 }
 
 func specCommand() *cobra.Command {
