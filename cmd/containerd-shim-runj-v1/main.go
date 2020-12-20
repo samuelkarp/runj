@@ -6,5 +6,5 @@ import (
 )
 
 func main() {
-	shim.Run("runj", containerd.NewService)
+	shim.Run("wtf.sbk.runj.v1", containerd.NewService)
 }

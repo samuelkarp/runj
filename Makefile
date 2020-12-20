@@ -2,7 +2,7 @@ SOURCES != find . -name '*.go'
 
 all: binaries
 
-binaries: runj runj-entrypoint containerd-shim-runj
+binaries: runj runj-entrypoint containerd-shim-runj-v1
 
 runj: bin/runj
 bin/runj: $(SOURCES)
@@ -12,13 +12,13 @@ runj-entrypoint: bin/runj-entrypoint
 bin/runj-entrypoint: $(SOURCES)
 	go build -o bin/runj-entrypoint ./cmd/runj-entrypoint
 
-containerd-shim-runj: bin/containerd-shim-runj
-bin/containerd-shim-runj: $(SOURCES)
-	go build -o bin/containerd-shim-runj ./cmd/containerd-shim-runj
+containerd-shim-runj-v1: bin/containerd-shim-runj-v1
+bin/containerd-shim-runj-v1: $(SOURCES)
+	go build -o bin/containerd-shim-runj-v1 ./cmd/containerd-shim-runj-v1
 
 .PHONY: install
-install: runj containerd-shim-runj
-	install -o 0 -g 0 bin/runj bin/runj-entrypoint bin/containerd-shim-runj /usr/local/bin
+install: runj containerd-shim-runj-v1
+	install -o 0 -g 0 bin/runj bin/runj-entrypoint bin/containerd-shim-runj-v1 /usr/local/bin
 
 .PHONY: test
 test:
