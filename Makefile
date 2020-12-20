@@ -16,6 +16,10 @@ containerd-shim-runj: bin/containerd-shim-runj
 bin/containerd-shim-runj: $(SOURCES)
 	go build -o bin/containerd-shim-runj ./cmd/containerd-shim-runj
 
+.PHONY: install
+install: runj containerd-shim-runj
+	install -o 0 -g 0 bin/runj bin/runj-entrypoint bin/containerd-shim-runj /usr/local/bin
+
 .PHONY: test
 test:
 	go test -v ./...
