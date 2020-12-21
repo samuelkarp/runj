@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -98,6 +99,9 @@ type service struct {
 	cancel      func()
 	events      chan interface{}
 	shimAddress string
+
+	m          sync.Mutex
+	bundlePath string
 }
 
 // StartShim is called whenever a new container is created.  The role of the
@@ -200,16 +204,45 @@ func (s *service) Shutdown(ctx context.Context, req *task.ShutdownRequest) (*typ
 	return empty, nil
 }
 
-// Cleanup is called to clean any remaining resources for the container. Cleanup
-// should call runj delete but importantly _not_ remove the shim's socket as
-// that should happen in Shutdown.
+// Cleanup is called to clean any remaining resources for the container and is
+// called through the `delete` subcommand rather than over ttrpc if containerd
+// is unable to reconnect to the shim. Cleanup should call runj delete but
+// importantly _not_ remove the shim's socket as that should happen in Shutdown.
+// Cleanup is a binary call that cleans up any resources used by the shim when
+// the service crashes; it is a fallback of Delete.
 func (s *service) Cleanup(ctx context.Context) (*task.DeleteResponse, error) {
-	log.G(ctx).Warn("CLEANUP")
-	path, err := os.Getwd()
-	if err != nil {
-		return nil, err
+	opts, ok := ctx.Value(shim.OptsKey{}).(shim.Opts)
+	if !ok {
+		return nil, errors.New("failed to read opts")
 	}
-	if err := mount.UnmountAll(filepath.Join(path, "rootfs"), 0); err != nil {
+	return s.delete(ctx, opts.BundlePath)
+}
+
+// Delete a process or container.  When deleting a container, Delete should call
+// runj delete but importantly _not_ remove the shim's socket as that should
+// happen in Shutdown.
+func (s *service) Delete(ctx context.Context, req *task.DeleteRequest) (*task.DeleteResponse, error) {
+	log.G(ctx).WithField("req", req).Warn("DELETE")
+	if req.ExecID != "" {
+		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
+		return nil, errdefs.ErrNotImplemented
+	}
+	if req.ID != s.id {
+		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
+		return nil, errdefs.ErrInvalidArgument
+	}
+	path := s.getBundlePath()
+	if path == "" {
+		log.G(ctx).Error("bundle path missing")
+		return nil, errdefs.ErrFailedPrecondition
+	}
+
+	return s.delete(ctx, path)
+}
+
+// delete performs work that is common between Cleanup and Delete.
+func (s *service) delete(ctx context.Context, bundlePath string) (*task.DeleteResponse, error) {
+	if err := mount.UnmountAll(filepath.Join(bundlePath, "rootfs"), 0); err != nil {
 		log.G(ctx).WithError(err).Warn("failed to cleanup rootfs mount")
 	}
 	return &taskAPI.DeleteResponse{
@@ -221,6 +254,7 @@ func (s *service) Cleanup(ctx context.Context) (*task.DeleteResponse, error) {
 // Create sets up the OCI bundle and invokes runj create
 func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*task.CreateTaskResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("CREATE")
+	s.setBundlePath(req.Bundle)
 
 	var mounts []process.Mount
 	for _, m := range req.Rootfs {
@@ -264,6 +298,24 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	return nil, errdefs.ErrNotImplemented
 }
 
+func (s *service) setBundlePath(bundlePath string) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	if s.bundlePath != "" && s.bundlePath != bundlePath {
+		return errors.New("cannot re-set bundlePath to different value")
+	}
+	s.bundlePath = bundlePath
+	return nil
+}
+
+func (s *service) getBundlePath() string {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	return s.bundlePath
+}
+
 func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.StateResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("STATE")
 	return nil, errdefs.ErrNotImplemented
@@ -271,11 +323,6 @@ func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.Stat
 
 func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.StartResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("START")
-	return nil, errdefs.ErrNotImplemented
-}
-
-func (s *service) Delete(ctx context.Context, req *task.DeleteRequest) (*task.DeleteResponse, error) {
-	log.G(ctx).WithField("req", req).Warn("DELETE")
 	return nil, errdefs.ErrNotImplemented
 }
 
