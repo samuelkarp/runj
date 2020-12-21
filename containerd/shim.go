@@ -4,13 +4,16 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/pkg/process"
 	"github.com/containerd/containerd/runtime"
 	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/containerd/containerd/runtime/v2/task"
@@ -19,6 +22,7 @@ import (
 	ptypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 // NewService creates a new runj service and returns it as a shim.Shim
@@ -201,16 +205,67 @@ func (s *service) Shutdown(ctx context.Context, req *task.ShutdownRequest) (*typ
 // that should happen in Shutdown.
 func (s *service) Cleanup(ctx context.Context) (*task.DeleteResponse, error) {
 	log.G(ctx).Warn("CLEANUP")
+	path, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	if err := mount.UnmountAll(filepath.Join(path, "rootfs"), 0); err != nil {
+		log.G(ctx).WithError(err).Warn("failed to cleanup rootfs mount")
+	}
+	return &taskAPI.DeleteResponse{
+		ExitedAt:   time.Now(),
+		ExitStatus: 128 + uint32(unix.SIGKILL),
+	}, nil
+}
+
+// Create sets up the OCI bundle and invokes runj create
+func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*task.CreateTaskResponse, error) {
+	log.G(ctx).WithField("req", req).Warn("CREATE")
+
+	var mounts []process.Mount
+	for _, m := range req.Rootfs {
+		mounts = append(mounts, process.Mount{
+			Type:    m.Type,
+			Source:  m.Source,
+			Target:  m.Target,
+			Options: m.Options,
+		})
+	}
+
+	rootfs := ""
+	if len(mounts) > 0 {
+		log.G(ctx).WithField("mounts", mounts).Warn("mkdir rootfs")
+		rootfs = filepath.Join(req.Bundle, "rootfs")
+		if err := os.Mkdir(rootfs, 0711); err != nil && !os.IsExist(err) {
+			return nil, err
+		}
+	}
+	var err error
+	defer func() {
+		if err != nil {
+			log.G(ctx).WithField("rootfs", rootfs).WithError(err).Warn("unmount rootfs")
+			if err2 := mount.UnmountAll(rootfs, 0); err2 != nil {
+				logrus.WithError(err2).Warn("failed to cleanup rootfs mount")
+			}
+		}
+	}()
+	for _, rm := range mounts {
+		m := &mount.Mount{
+			Type:    rm.Type,
+			Source:  rm.Source,
+			Options: rm.Options,
+		}
+		log.G(ctx).WithField("mount", m).WithField("rootfs", rootfs).Warn("mount")
+		if err := m.Mount(rootfs); err != nil {
+			return nil, errors.Wrapf(err, "failed to mount rootfs component %v", m)
+		}
+	}
+
 	return nil, errdefs.ErrNotImplemented
 }
 
 func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.StateResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("STATE")
-	return nil, errdefs.ErrNotImplemented
-}
-
-func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*task.CreateTaskResponse, error) {
-	log.G(ctx).WithField("req", req).Warn("CREATE")
 	return nil, errdefs.ErrNotImplemented
 }
 
