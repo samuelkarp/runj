@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -36,6 +37,22 @@ func SetupEntrypoint(id string, argv []string) (*exec.Cmd, error) {
 	cmd.Stderr = os.Stderr
 
 	return cmd, cmd.Start()
+}
+
+// CleanupEntrypoint sends a SIGTERM to the PID recorded in the state file.
+// This function returns with no error even if the process is not running or
+// cannot be signaled.
+func CleanupEntrypoint(id string) error {
+	s, err := state.Load(id)
+	if err != nil {
+		return err
+	}
+	if s.PID == 0 {
+		return nil
+	}
+	e, _ := os.FindProcess(s.PID)
+	e.Signal(syscall.SIGTERM)
+	return nil
 }
 
 // inspired by runc

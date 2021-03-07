@@ -38,6 +38,10 @@ func deleteCommand() *cobra.Command {
 			if running {
 				return fmt.Errorf("delete: jail %s is not stopped", id)
 			}
+			err = jail.CleanupEntrypoint(id)
+			if err != nil {
+				return fmt.Errorf("delete: failed to find entrypoint process: %w", err)
+			}
 			confPath := jail.ConfPath(id)
 			if _, err := os.Stat(confPath); err != nil {
 				return errors.New("invalid jail id provided")
