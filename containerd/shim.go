@@ -242,6 +242,10 @@ func (s *service) Delete(ctx context.Context, req *task.DeleteRequest) (*task.De
 
 // delete performs work that is common between Cleanup and Delete.
 func (s *service) delete(ctx context.Context, bundlePath string) (*task.DeleteResponse, error) {
+	if err := execDelete(ctx, s.id); err != nil {
+		log.G(ctx).WithError(err).Error("failed to run runj delete")
+		return nil, err
+	}
 	if err := mount.UnmountAll(filepath.Join(bundlePath, "rootfs"), 0); err != nil {
 		log.G(ctx).WithError(err).Warn("failed to cleanup rootfs mount")
 	}
@@ -254,6 +258,10 @@ func (s *service) delete(ctx context.Context, bundlePath string) (*task.DeleteRe
 // Create sets up the OCI bundle and invokes runj create
 func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*task.CreateTaskResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("CREATE")
+	if req.ID != s.id {
+		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
+		return nil, errdefs.ErrInvalidArgument
+	}
 	s.setBundlePath(req.Bundle)
 
 	var mounts []process.Mount
@@ -279,7 +287,7 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		if err != nil {
 			log.G(ctx).WithField("rootfs", rootfs).WithError(err).Warn("unmount rootfs")
 			if err2 := mount.UnmountAll(rootfs, 0); err2 != nil {
-				logrus.WithError(err2).Warn("failed to cleanup rootfs mount")
+				log.G(ctx).WithError(err2).Warn("failed to cleanup rootfs mount")
 			}
 		}
 	}()
@@ -295,7 +303,30 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		}
 	}
 
-	return nil, errdefs.ErrNotImplemented
+	err = execCreate(ctx, req.ID, req.Bundle)
+	if err != nil {
+		log.G(ctx).WithError(err).Error("failed to create jail")
+		return nil, err
+	}
+
+	ociState, err := execState(ctx, req.ID)
+	if err != nil {
+		log.G(ctx).WithError(err).Error("failed to get jail state")
+		return nil, err
+	}
+
+	log.G(ctx).WithField("pid", ociState.PID).Warn("entrypoint waiting!")
+
+	s.send(&events.TaskCreate{
+		ContainerID: req.ID,
+		Bundle:      req.Bundle,
+		Rootfs:      req.Rootfs,
+		Pid:         uint32(ociState.PID),
+	})
+
+	return &taskAPI.CreateTaskResponse{
+		Pid: uint32(ociState.PID),
+	}, nil
 }
 
 func (s *service) setBundlePath(bundlePath string) error {
@@ -314,6 +345,10 @@ func (s *service) getBundlePath() string {
 	defer s.m.Unlock()
 
 	return s.bundlePath
+}
+
+func (s *service) send(evt interface{}) {
+	s.events <- evt
 }
 
 func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.StateResponse, error) {
