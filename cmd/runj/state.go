@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"go.sbk.wtf/runj/jail"
 	"go.sbk.wtf/runj/runtimespec"
@@ -86,7 +87,7 @@ func stateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cmd.Println(string(b))
+			fmt.Println(string(b))
 			return nil
 		},
 	}
