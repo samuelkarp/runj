@@ -50,3 +50,17 @@ func execDelete(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+func execKill(ctx context.Context, id string, signal string, all bool) error {
+	args := []string{"kill", id, signal}
+	if all {
+		args = append(args, "--all")
+	}
+	cmd := exec.CommandContext(ctx, "runj", args...)
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		log.G(ctx).WithError(err).WithField("output", string(b)).WithField("id", id).Error("runj kill failed")
+		return err
+	}
+	return nil
+}

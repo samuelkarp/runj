@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -418,7 +419,16 @@ func (s *service) Checkpoint(ctx context.Context, req *task.CheckpointTaskReques
 
 func (s *service) Kill(ctx context.Context, req *task.KillRequest) (*types.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("KILL")
-	return nil, errdefs.ErrNotImplemented
+	if req.ExecID != "" {
+		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
+		return nil, errdefs.ErrNotImplemented
+	}
+	if req.ID != s.id {
+		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
+		return nil, errdefs.ErrInvalidArgument
+	}
+	err := execKill(ctx, s.id, strconv.FormatUint(uint64(req.Signal), 10), req.All)
+	return nil, err
 }
 
 func (s *service) Exec(ctx context.Context, req *task.ExecProcessRequest) (*types.Empty, error) {
