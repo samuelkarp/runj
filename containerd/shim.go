@@ -394,7 +394,26 @@ func runjStatusToContainerdStatus(in string) tasktypes.Status {
 
 func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.StartResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("START")
-	return nil, errdefs.ErrNotImplemented
+	log.G(ctx).WithField("req", req).Warn("KILL")
+	if req.ExecID != "" {
+		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
+		return nil, errdefs.ErrNotImplemented
+	}
+	if req.ID != s.id {
+		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
+		return nil, errdefs.ErrInvalidArgument
+	}
+	ociState, err := execState(ctx, s.id)
+	if err != nil {
+		return nil, err
+	}
+	err = execStart(ctx, s.id)
+	if err != nil {
+		return nil, err
+	}
+	return &task.StartResponse{
+		Pid: uint32(ociState.PID),
+	}, nil
 }
 
 func (s service) Pids(ctx context.Context, req *task.PidsRequest) (*task.PidsResponse, error) {
