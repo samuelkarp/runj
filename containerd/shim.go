@@ -9,7 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"go.sbk.wtf/runj/state"
+
 	"github.com/containerd/containerd/api/events"
+	tasktypes "github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
@@ -353,7 +356,39 @@ func (s *service) send(evt interface{}) {
 
 func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.StateResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("STATE")
-	return nil, errdefs.ErrNotImplemented
+	if req.ExecID != "" {
+		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
+		return nil, errdefs.ErrNotImplemented
+	}
+	if req.ID != s.id {
+		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
+		return nil, errdefs.ErrInvalidArgument
+	}
+	bundlePath := s.getBundlePath()
+	ociState, err := execState(ctx, s.id)
+	if err != nil {
+		return nil, err
+	}
+	return &task.StateResponse{
+		ID:     s.id,
+		Bundle: bundlePath,
+		Pid:    uint32(ociState.PID),
+		Status: runjStatusToContainerdStatus(ociState.Status),
+	}, nil
+}
+
+func runjStatusToContainerdStatus(in string) tasktypes.Status {
+	switch state.Status(in) {
+	case state.StatusCreating:
+		return tasktypes.StatusUnknown
+	case state.StatusCreated:
+		return tasktypes.StatusCreated
+	case state.StatusRunning:
+		return tasktypes.StatusRunning
+	case state.StatusStopped:
+		return tasktypes.StatusStopped
+	}
+	return tasktypes.StatusUnknown
 }
 
 func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.StartResponse, error) {
