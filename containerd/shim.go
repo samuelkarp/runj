@@ -23,6 +23,8 @@ import (
 	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/containerd/containerd/runtime/v2/task"
 	taskAPI "github.com/containerd/containerd/runtime/v2/task"
+	"github.com/containerd/containerd/sys/reaper"
+	runc "github.com/containerd/go-runc"
 	"github.com/gogo/protobuf/types"
 	ptypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
@@ -37,13 +39,55 @@ func NewService(ctx context.Context, id string, publisher shim.Publisher, shutdo
 		context: ctx,
 		cancel:  shutdown,
 		events:  make(chan interface{}, 128),
+		// subscribe to the reaper to receive process exit information
+		exits:     reaper.Default.Subscribe(),
+		waitblock: make(chan struct{}, 0),
 	}
 
 	if address, err := shim.ReadAddress("address"); err == nil {
 		s.shimAddress = address
 	}
+
+	// register the shim as a reaper so that it receives exit events for all (orphaned) descendent processes and can
+	// wait on their results
+	SetupReaperSignals(ctx, log.G(ctx).WithField("id", id))
+	go s.processExits()
+
 	go s.forward(ctx, publisher)
 	return s, nil
+}
+
+// processExits handles exits for child processes inside the jail
+func (s *service) processExits() {
+	for e := range s.exits {
+		log.G(s.context).WithField("pid", e.Pid).Warn("PROCESSING EXIT!")
+		s.checkProcesses(e)
+	}
+}
+
+// checkProcesses records exit data for processes inside the jail.  The only
+// process currently handled is the init/main process.
+func (s *service) checkProcesses(e runc.Exit) {
+	pid := s.getPID()
+	if e.Pid != pid {
+		return
+	}
+
+	// Ensure all children are killed
+	err := execKill(s.context, s.id, unix.SIGKILL.String(), true)
+	if err != nil {
+		logrus.WithError(err).WithField("id", s.id).Error("failed to kill init's children")
+	}
+	s.setExited(e)
+	s.sendL(&events.TaskExit{
+		ContainerID: s.id,
+		ID:          s.id,
+		Pid:         uint32(e.Pid),
+		ExitStatus:  uint32(e.Status),
+		ExitedAt:    e.Timestamp,
+	})
+	// indicate that results are now ready for any pending Wait calls
+	close(s.waitblock)
 }
 
 // forward forwards events to the shim.Publisher
@@ -91,10 +135,12 @@ func mapTopic(e interface{}) string {
 	return runtime.TaskUnknownTopic
 }
 
-// check to make sure the *service implements the GRPC API
 var (
-	_     taskAPI.TaskService = (*service)(nil)
-	empty                     = &ptypes.Empty{}
+	// check to make sure the *service implements the GRPC API
+	_ taskAPI.TaskService = (*service)(nil)
+
+	// empty is an empty return value
+	empty = &ptypes.Empty{}
 )
 
 type service struct {
@@ -102,10 +148,15 @@ type service struct {
 	context     context.Context
 	cancel      func()
 	events      chan interface{}
+	eventSendMu sync.Mutex
 	shimAddress string
+	exits       chan runc.Exit
 
-	m          sync.Mutex
+	mu         sync.Mutex
 	bundlePath string
+	pid        int
+	exit       runc.Exit
+	waitblock  chan struct{}
 }
 
 // StartShim is called whenever a new container is created.  The role of the
@@ -320,8 +371,9 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	}
 
 	log.G(ctx).WithField("pid", ociState.PID).Warn("entrypoint waiting!")
+	s.setPID(ociState.PID)
 
-	s.send(&events.TaskCreate{
+	s.sendL(&events.TaskCreate{
 		ContainerID: req.ID,
 		Bundle:      req.Bundle,
 		Rootfs:      req.Rootfs,
@@ -334,8 +386,8 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 }
 
 func (s *service) setBundlePath(bundlePath string) error {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.bundlePath != "" && s.bundlePath != bundlePath {
 		return errors.New("cannot re-set bundlePath to different value")
@@ -345,13 +397,55 @@ func (s *service) setBundlePath(bundlePath string) error {
 }
 
 func (s *service) getBundlePath() string {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	return s.bundlePath
 }
 
-func (s *service) send(evt interface{}) {
+func (s *service) setPID(p int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.pid != 0 && s.pid != p {
+		return errors.New("cannot re-set pid to different value")
+	}
+	s.pid = p
+	return nil
+}
+
+// getPID retrieves the PID of the jail's main process
+func (s *service) getPID() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.pid
+}
+
+func (s *service) setExited(e runc.Exit) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.exit = e
+}
+
+func (s *service) getExited() runc.Exit {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.exit
+}
+
+// sendUnsafe sends an event without acquiring the event lock
+func (s *service) sendUnsafe(evt interface{}) {
+	s.events <- evt
+}
+
+// sendL acquires the event lock and then sends an event
+func (s *service) sendL(evt interface{}) {
+	s.eventSendMu.Lock()
+	defer s.eventSendMu.Unlock()
+
 	s.events <- evt
 }
 
@@ -407,10 +501,19 @@ func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.Star
 	if err != nil {
 		return nil, err
 	}
+
+	// hold the sendUnsafe lock so that the start events are sent before any exit events in the error case
+	s.eventSendMu.Lock()
+	defer s.eventSendMu.Unlock()
 	err = execStart(ctx, s.id)
 	if err != nil {
 		return nil, err
 	}
+
+	s.sendUnsafe(&events.TaskStart{
+		ContainerID: s.id,
+		Pid:         uint32(ociState.PID),
+	})
 	return &task.StartResponse{
 		Pid: uint32(ociState.PID),
 	}, nil
@@ -470,9 +573,26 @@ func (s *service) Update(ctx context.Context, req *task.UpdateTaskRequest) (*typ
 	return nil, errdefs.ErrNotImplemented
 }
 
+// Wait blocks while the identified process is running and returns its exit code and exit timestamp when complete.
+// The data for Wait (including the channel it uses as an indicator of when results are ready) is provided by the
+// SIGCHLD handler, reaper, and subscribed goroutine.
 func (s *service) Wait(ctx context.Context, req *task.WaitRequest) (*task.WaitResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("WAIT")
-	return nil, errdefs.ErrNotImplemented
+	if req.ExecID != "" {
+		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
+		return nil, errdefs.ErrNotImplemented
+	}
+	if req.ID != s.id {
+		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
+		return nil, errdefs.ErrInvalidArgument
+	}
+	// Only the init/main process of the jail is currently supported.  This logic will need to change for exec support.
+	<-s.waitblock
+	e := s.getExited()
+	return &task.WaitResponse{
+		ExitStatus: uint32(e.Status),
+		ExitedAt:   e.Timestamp,
+	}, nil
 }
 
 func (s *service) Stats(ctx context.Context, req *task.StatsRequest) (*task.StatsResponse, error) {
