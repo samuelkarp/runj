@@ -15,3 +15,5 @@ of notes for how the tools are used.
 
 * Set environment variables prior to invoking `jail(8)`, which passes its own
   environment through when creating the jail.
+* The standard I/O streams (stdio) used for `jexec(8)` are ultimately passed
+  through to the jailed process.

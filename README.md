@@ -10,7 +10,7 @@ runj is an experimental, proof-of-concept
 
 ## Status
 
-runj is in early development and exists primarily as a skeleton.
+runj is in early development and is functional, but has very limited features.
 
 runj currently supports the following parts of the OCI runtime spec:
 
@@ -71,6 +71,42 @@ Send a signal to your container process (or all processes in the container) with
 `runj kill $ID`.
 
 Remove your container with `runj delete $ID`.
+
+### containerd
+
+Along with the main `runj` OCI runtime, this repository also contains an
+experimental shim that can be used with containerd.  The shim is available as
+`containerd-shim-runj-v1` and can be used from the `ctr` command-line tool by
+specifying `--runtime wtf.sbk.runj.v1`.
+
+A special build of containerd is currently required as not all the necessary
+patches for FreeBSD support have yet been merged upstream.  You can find the set
+of patches used on the
+[`freebsd` branch on my fork of containerd](https://github.com/samuelkarp/containerd/tree/freebsd).
+
+#### OCI Image
+
+`runj` contains a utility that can convert a FreeBSD root filesystem into an OCI
+image that can be imported into containerd.  You can download, convert, and
+import an image as follows:
+
+```
+$ runj demo download --output rootfs.txz
+Found arch:  amd64
+Found version:  12.1-RELEASE
+Downloading image for amd64 12.1-RELEASE into rootfs.txz
+[...output elided...]
+$ runj demo oci-image --input rootfs.txz
+Creating OCI image in file image.tar
+extracting...
+compressing...
+computing layer digest...
+writing blob sha256:f585dd296aa9697b5acaf9db7b40701a6377a3ccf4d29065cbfd3d2b80395733
+writing blob sha256:4356d99aa6bcea46611c0108af469129e7013a4d121567c2fbd0e753e8e073cf
+tar...
+$ sudo ctr image import --index-name freebsd image.tar
+unpacking freebsd (sha256:960c76846cd112e09032c88914458faee8d03c04b8260dfbc4da70b25227534a)...done
+```
 
 ## Implementation details
 
