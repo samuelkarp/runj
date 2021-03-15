@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 	"github.com/containerd/containerd/runtime/v2/task"
 	taskAPI "github.com/containerd/containerd/runtime/v2/task"
 	"github.com/containerd/containerd/sys/reaper"
+	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
 	"github.com/gogo/protobuf/types"
 	ptypes "github.com/gogo/protobuf/types"
@@ -72,6 +74,7 @@ func (s *service) checkProcesses(e runc.Exit) {
 	if e.Pid != pid {
 		return
 	}
+	log.G(s.context).WithField("pid", e.Pid).Warn("INIT EXITED!")
 
 	// Ensure all children are killed
 	err := execKill(s.context, s.id, unix.SIGKILL.String(), true)
@@ -86,6 +89,9 @@ func (s *service) checkProcesses(e runc.Exit) {
 		ExitStatus:  uint32(e.Status),
 		ExitedAt:    e.Timestamp,
 	})
+	for _, c := range s.getStdioFifo() {
+		c.Close()
+	}
 	// indicate that results are now ready for any pending Wait calls
 	close(s.waitblock)
 }
@@ -155,8 +161,12 @@ type service struct {
 	mu         sync.Mutex
 	bundlePath string
 	pid        int
-	exit       runc.Exit
-	waitblock  chan struct{}
+	// exit records exit details for the jail
+	exit runc.Exit
+	// waitblock is a channel signaling the end of jail execution
+	waitblock chan struct{}
+	// stdioFifo is a slice of io.Closer to close when the jail exits
+	stdioFifo []io.Closer
 }
 
 // StartShim is called whenever a new container is created.  The role of the
@@ -358,11 +368,37 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		}
 	}
 
-	err = execCreate(ctx, req.ID, req.Bundle)
+	var closeOnErr []io.Closer
+	defer func() {
+		if err == nil {
+			return
+		}
+		for _, c := range closeOnErr {
+			c.Close()
+		}
+	}()
+	stdin, err := fifo.OpenFifo(ctx, req.Stdin, syscall.O_RDONLY, 0)
+	if err != nil {
+		return nil, err
+	}
+	closeOnErr = append(closeOnErr, stdin)
+	stdout, err := fifo.OpenFifo(ctx, req.Stdout, syscall.O_WRONLY, 0)
+	if err != nil {
+		return nil, err
+	}
+	closeOnErr = append(closeOnErr, stdout)
+	stderr, err := fifo.OpenFifo(ctx, req.Stderr, syscall.O_WRONLY, 0)
+	if err != nil {
+		return nil, err
+	}
+	closeOnErr = append(closeOnErr, stderr)
+
+	err = execCreate(ctx, req.ID, req.Bundle, stdin, stdout, stderr)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to create jail")
 		return nil, err
 	}
+	s.setStdioFifo(closeOnErr)
 
 	ociState, err := execState(ctx, req.ID)
 	if err != nil {
@@ -436,6 +472,23 @@ func (s *service) getExited() runc.Exit {
 	return s.exit
 }
 
+func (s *service) setStdioFifo(stdio []io.Closer) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if len(s.stdioFifo) > 0 {
+		return errors.New("cannot re-set stdioFifo to different value")
+	}
+	s.stdioFifo = stdio
+	return nil
+}
+
+func (s *service) getStdioFifo() []io.Closer {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]io.Closer{}, s.stdioFifo...)
+}
+
 // sendUnsafe sends an event without acquiring the event lock
 func (s *service) sendUnsafe(evt interface{}) {
 	s.events <- evt
@@ -464,12 +517,18 @@ func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.Stat
 	if err != nil {
 		return nil, err
 	}
-	return &task.StateResponse{
+	resp := &task.StateResponse{
 		ID:     s.id,
 		Bundle: bundlePath,
 		Pid:    uint32(ociState.PID),
 		Status: runjStatusToContainerdStatus(ociState.Status),
-	}, nil
+	}
+	if resp.Status == tasktypes.StatusStopped {
+		exit := s.getExited()
+		resp.ExitedAt = exit.Timestamp
+		resp.ExitStatus = uint32(exit.Status)
+	}
+	return resp, nil
 }
 
 func runjStatusToContainerdStatus(in string) tasktypes.Status {

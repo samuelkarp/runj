@@ -4,21 +4,39 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os/exec"
 
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/sys/reaper"
+	runc "github.com/containerd/go-runc"
 )
 
 // execCreate runs the "create" subcommand for runj
-func execCreate(ctx context.Context, id, bundle string) error {
+func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	cmd := exec.CommandContext(ctx, "runj", "create", id, bundle)
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	ec, err := reaper.Default.Start(cmd)
-	_, err = reaper.Default.Wait(cmd, ec)
+	_, err = WaitNoFlush(cmd, ec)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("id", id).Error("runj create failed")
 	}
 	return err
+}
+
+// WaitNoFlush waits for a process to exit but does not flush IO with cmd.Wait
+func WaitNoFlush(c *exec.Cmd, ec chan runc.Exit) (int, error) {
+	for e := range ec {
+		if e.Pid == c.Process.Pid {
+			reaper.Default.Unsubscribe(ec)
+			return e.Status, nil
+		}
+	}
+	// return no such process if the ec channel is closed and no more exit
+	// events will be sent
+	return -1, reaper.ErrNoSuchProcess
 }
 
 type ociState struct {
