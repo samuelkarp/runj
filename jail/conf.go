@@ -26,7 +26,6 @@ func CreateConfig(id, root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(config)
 	confPath := ConfPath(id)
 	confFile, err := os.OpenFile(confPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 	if err != nil {

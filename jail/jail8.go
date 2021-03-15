@@ -2,20 +2,25 @@ package jail
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 )
 
 func CreateJail(ctx context.Context, confPath string) error {
 	cmd := exec.CommandContext(ctx, "jail", "-cf", confPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, string(out))
+	}
+	return err
 }
 
 func DestroyJail(ctx context.Context, confPath, jail string) error {
 	cmd := exec.CommandContext(ctx, "jail", "-f", confPath, "-r", jail)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, string(out))
+	}
+	return err
 }
