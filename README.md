@@ -86,9 +86,19 @@ of patches used on the
 
 #### OCI Image
 
-`runj` contains a utility that can convert a FreeBSD root filesystem into an OCI
-image that can be imported into containerd.  You can download, convert, and
-import an image as follows:
+A base OCI image for FreeBSD 12.1-RELEASE on the `amd64` architecture is
+available in the
+[Amazon ECR public gallery](https://gallery.ecr.aws/samuelkarp/freebsd).  You
+can pull the image with the `ctr` tool like this:
+
+```
+$ sudo ctr image pull public.ecr.aws/samuelkarp/freebsd:12.1-RELEASE
+```
+
+If you prefer to build your own image, need an image for a different
+architecture, or want to try out a different version of FreeBSD, `runj` contains
+a utility that can convert a FreeBSD root filesystem into an OCI image.  You
+can download, convert, and import an image as follows:
 
 ```
 $ runj demo download --output rootfs.txz
@@ -102,10 +112,25 @@ extracting...
 compressing...
 computing layer digest...
 writing blob sha256:f585dd296aa9697b5acaf9db7b40701a6377a3ccf4d29065cbfd3d2b80395733
-writing blob sha256:4356d99aa6bcea46611c0108af469129e7013a4d121567c2fbd0e753e8e073cf
+writing blob sha256:413cc9413157f822242a4bb2c86ea50d20b8343964b5cf1d86182e132b51f78b
 tar...
 $ sudo ctr image import --index-name freebsd image.tar
-unpacking freebsd (sha256:960c76846cd112e09032c88914458faee8d03c04b8260dfbc4da70b25227534a)...done
+unpacking freebsd (sha256:5ac2e259d1e84a9b955f7630ef499c8b6896f8409b6ac9d9a21542cb883387c0)...done
+```
+
+#### Running containers with `ctr`
+
+With containerd, `runj`, and the `containerd-shim-runj-v1` binary installed, you
+can use the `ctr` command-line tool to run containers like this:
+
+```
+$ sudo ctr run \
+    --runtime wtf.sbk.runj.v1 \
+    --rm \
+    public.ecr.aws/samuelkarp/freebsd:12.1-RELEASE \
+    my-container \
+    sh -c 'echo "Hello from the container!"'
+Hello from the container!
 ```
 
 ## Implementation details
