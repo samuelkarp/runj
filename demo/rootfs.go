@@ -125,19 +125,11 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 			MediaType: v1.MediaTypeImageConfig,
 			Digest:    configDigest,
 			Size:      int64(len(configJson)),
-			Platform: &v1.Platform{
-				Architecture: arch,
-				OS:           freebsd,
-			},
 		},
 		Layers: []v1.Descriptor{{
 			MediaType: v1.MediaTypeImageLayerGzip,
 			Digest:    compressedDigest,
 			Size:      compressedInfo.Size(),
-			Platform: &v1.Platform{
-				Architecture: arch,
-				OS:           freebsd,
-			},
 		}},
 	}
 	manifestJson, err := json.Marshal(manifest)
