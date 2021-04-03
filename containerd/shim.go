@@ -350,7 +350,7 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	var err error
 	defer func() {
 		if err != nil {
-			log.G(ctx).WithField("rootfs", rootfs).WithError(err).Warn("unmount rootfs")
+			log.G(ctx).WithField("rootfs", rootfs).WithError(err).Error("failed to create,unmounting rootfs")
 			if err2 := mount.UnmountAll(rootfs, 0); err2 != nil {
 				log.G(ctx).WithError(err2).Warn("failed to cleanup rootfs mount")
 			}
@@ -377,21 +377,32 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 			c.Close()
 		}
 	}()
-	stdin, err := fifo.OpenFifo(ctx, req.Stdin, syscall.O_RDONLY, 0)
-	if err != nil {
-		return nil, err
+	var (
+		stdin  io.ReadWriteCloser
+		stdout io.ReadWriteCloser
+		stderr io.ReadWriteCloser
+	)
+	if _, err := os.Stat(req.Stdin); err == nil {
+		stdin, err = fifo.OpenFifo(ctx, req.Stdin, syscall.O_RDONLY, 0)
+		if err != nil {
+			return nil, err
+		}
+		closeOnErr = append(closeOnErr, stdin)
 	}
-	closeOnErr = append(closeOnErr, stdin)
-	stdout, err := fifo.OpenFifo(ctx, req.Stdout, syscall.O_WRONLY, 0)
-	if err != nil {
-		return nil, err
+	if _, err := os.Stat(req.Stdout); err == nil {
+		stdout, err = fifo.OpenFifo(ctx, req.Stdout, syscall.O_WRONLY, 0)
+		if err != nil {
+			return nil, err
+		}
+		closeOnErr = append(closeOnErr, stdout)
 	}
-	closeOnErr = append(closeOnErr, stdout)
-	stderr, err := fifo.OpenFifo(ctx, req.Stderr, syscall.O_WRONLY, 0)
-	if err != nil {
-		return nil, err
+	if _, err := os.Stat(req.Stderr); err == nil {
+		stderr, err = fifo.OpenFifo(ctx, req.Stderr, syscall.O_WRONLY, 0)
+		if err != nil {
+			return nil, err
+		}
+		closeOnErr = append(closeOnErr, stderr)
 	}
-	closeOnErr = append(closeOnErr, stderr)
 
 	err = execCreate(ctx, req.ID, req.Bundle, stdin, stdout, stderr)
 	if err != nil {
