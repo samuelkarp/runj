@@ -383,7 +383,7 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		stderr io.ReadWriteCloser
 	)
 	if _, err := os.Stat(req.Stdin); err == nil {
-		stdin, err = fifo.OpenFifo(ctx, req.Stdin, syscall.O_RDONLY, 0)
+		stdin, err = fifo.OpenFifo(ctx, req.Stdin, syscall.O_RDONLY|syscall.O_NONBLOCK, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -404,7 +404,7 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		closeOnErr = append(closeOnErr, stderr)
 	}
 
-	err = execCreate(ctx, req.ID, req.Bundle, stdin, stdout, stderr)
+	err = execCreate(ctx, req.ID, req.Bundle, stdin, stdout, stderr, req.Terminal)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to create jail")
 		return nil, err

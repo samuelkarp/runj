@@ -4,26 +4,84 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os/exec"
+	"sync"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/containerd/console"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/sys/reaper"
 	runc "github.com/containerd/go-runc"
+	"github.com/pkg/errors"
 )
 
 // execCreate runs the "create" subcommand for runj
-func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	cmd := exec.CommandContext(ctx, "runj", "create", id, bundle)
+func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout io.Writer, stderr io.Writer, terminal bool) error {
+	args := []string{"create", id, bundle}
+	var socket *runc.Socket
+	if terminal {
+		log.G(ctx).WithField("id", id).Warn("Creating terminal!")
+		var err error
+		socket, err = runc.NewTempConsoleSocket()
+		if err != nil {
+			return fmt.Errorf("create: failed to create runj console socket: %w", err)
+		}
+		defer socket.Close()
+		args = append(args, "--console-socket", socket.Path())
+	}
+
+	cmd := exec.CommandContext(ctx, "runj", args...)
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
+	if terminal && cmd.Stderr == nil {
+		cmd.Stderr = log.G(ctx).WriterLevel(logrus.WarnLevel)
+	}
+	log.G(ctx).WithField("id", id).WithField("args", args).Warn("Starting runj create")
 	ec, err := reaper.Default.Start(cmd)
+
+	if socket != nil {
+		console, err := socket.ReceiveMaster()
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve console master")
+		}
+		log.G(ctx).WithField("id", id).Warn("Received console master!")
+		err = copyConsole(ctx, console, stdin, stdout, stderr)
+		if err != nil {
+			return errors.Wrap(err, "failed to start console copy")
+		}
+		log.G(ctx).WithField("id", id).Warn("Copying console!")
+	}
+
 	_, err = WaitNoFlush(cmd, ec)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("id", id).Error("runj create failed")
 	}
 	return err
+}
+
+func copyConsole(ctx context.Context, console console.Console, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	// TODO figure out whether we need a waitgroup for process stdio
+	var cwg sync.WaitGroup
+	if stdin != nil {
+		cwg.Add(1)
+		go func() {
+			cwg.Done()
+			io.Copy(console, stdin)
+		}()
+	}
+	if stdout != nil {
+		cwg.Add(1)
+		go func() {
+			cwg.Done()
+			io.Copy(stdout, console)
+		}()
+	}
+	cwg.Wait()
+	return nil
 }
 
 // WaitNoFlush waits for a process to exit but does not flush IO with cmd.Wait
