@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -18,14 +20,16 @@ import (
 
 const (
 	execFifoFilename = "exec.fifo"
+	consoleSocketEnv = "__RUNJ_CONSOLE_SOCKET"
+	stdioFdCount     = 3
 )
 
 // SetupEntrypoint starts a runj-entrypoint process, which then will later be
 // signalled through `runj start` to run the specified program in the jail.
-// This indirection is necessary so that the STDIO for `runj create` is directed
-// to that process.
+// This indirection is necessary so that the STDIO for `runj create` or the
+// supplied console socket is directed to that process.
 // Note: this API is unstable; expect it to change.
-func SetupEntrypoint(id string, argv []string) (*exec.Cmd, error) {
+func SetupEntrypoint(id string, argv []string, consoleSocketPath string) (*exec.Cmd, error) {
 	path, err := createExecFifo(id)
 	if err != nil {
 		return nil, err
@@ -35,6 +39,27 @@ func SetupEntrypoint(id string, argv []string) (*exec.Cmd, error) {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ()
+
+	// the caller of runj will handle receiving the console master
+	if consoleSocketPath != "" {
+		conn, err := net.Dial("unix", consoleSocketPath)
+		if err != nil {
+			return nil, err
+		}
+		uc, ok := conn.(*net.UnixConn)
+		if !ok {
+			return nil, errors.New("casting to UnixConn failed")
+		}
+		consoleSocket, err := uc.File()
+		if err != nil {
+			return nil, err
+		}
+		cmd.ExtraFiles = append(cmd.ExtraFiles, consoleSocket)
+		cmd.Env = append(cmd.Env,
+			consoleSocketEnv+"="+strconv.Itoa(stdioFdCount+len(cmd.ExtraFiles)-1),
+		)
+	}
 
 	return cmd, cmd.Start()
 }

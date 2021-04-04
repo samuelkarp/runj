@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -44,7 +45,7 @@ import (
 // integrations on top of runc expect this behavior, runj copies that at the
 // expense of more complication in the codebase.
 func createCommand() *cobra.Command {
-	return &cobra.Command{
+	create := &cobra.Command{
 		Use:   "create <container-id> <path-to-bundle>",
 		Short: "Create a new container with given ID and bundle",
 		Long: `Create a new container with given ID and bundle.  IDs must be unique.
@@ -69,59 +70,81 @@ command(s) that get executed on start, edit the args parameter of the spec.`,
 			}
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			disableUsage(cmd)
-			id := args[0]
-			bundle := args[1]
-			var s *state.State
-			s, err = state.Create(id, bundle)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if err == nil {
-					s.Status = state.StatusCreated
-					err = s.Save()
-				} else {
-					state.Remove(id)
-				}
-			}()
-			err = oci.StoreConfig(id, bundle)
-			if err != nil {
-				return err
-			}
-			var ociConfig *runtimespec.Spec
-			ociConfig, err = oci.LoadConfig(id)
-			if err != nil {
-				return err
-			}
-			rootPath := filepath.Join(bundle, "root")
-			if ociConfig != nil && ociConfig.Root != nil && ociConfig.Root.Path != "" {
-				rootPath = ociConfig.Root.Path
-				if rootPath[0] != filepath.Separator {
-					rootPath = filepath.Join(bundle, rootPath)
-				}
-			}
-			var confPath string
-			confPath, err = jail.CreateConfig(id, rootPath)
-			if err != nil {
-				return err
-			}
-			if err := jail.CreateJail(cmd.Context(), confPath); err != nil {
-				return err
-			}
-
-			// Setup and start the "runj-entrypoint" helper program in order to
-			// get the container STDIO hooked up properly.
-			var entrypoint *exec.Cmd
-			entrypoint, err = jail.SetupEntrypoint(id, ociConfig.Process.Args)
-			if err != nil {
-				return err
-			}
-			// the runj-entrypoint pid will become the container process's pid
-			// through a series of exec(2) calls
-			s.PID = entrypoint.Process.Pid
-			return nil
-		},
 	}
+	consoleSocket := create.Flags().String(
+		"console-socket",
+		"",
+		`path to an AF_UNIX socket which will receive a
+file descriptor referencing the master end of
+the console's pseudoterminal`)
+	create.RunE = func(cmd *cobra.Command, args []string) (err error) {
+		disableUsage(cmd)
+		id := args[0]
+		bundle := args[1]
+		var s *state.State
+		s, err = state.Create(id, bundle)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err == nil {
+				s.Status = state.StatusCreated
+				err = s.Save()
+			} else {
+				state.Remove(id)
+			}
+		}()
+		err = oci.StoreConfig(id, bundle)
+		if err != nil {
+			return err
+		}
+		var ociConfig *runtimespec.Spec
+		ociConfig, err = oci.LoadConfig(id)
+		if err != nil {
+			return err
+		}
+		rootPath := filepath.Join(bundle, "root")
+		if ociConfig != nil && ociConfig.Root != nil && ociConfig.Root.Path != "" {
+			rootPath = ociConfig.Root.Path
+			if rootPath[0] != filepath.Separator {
+				rootPath = filepath.Join(bundle, rootPath)
+			}
+		}
+		// console socket validation
+		if ociConfig.Process.Terminal {
+			if *consoleSocket == "" {
+				return errors.New("console-socket is required when Process.Terminal is true")
+			}
+			if socketStat, err := os.Stat(*consoleSocket); err != nil {
+				return fmt.Errorf("failed to stat console socket %q: %w", *consoleSocket, err)
+			} else {
+				if socketStat.Mode()&os.ModeSocket != os.ModeSocket {
+					return fmt.Errorf("console-socket %q is not a socket", *consoleSocket)
+				}
+			}
+		} else if *consoleSocket != "" {
+			return errors.New("console-socket provided but Process.Terminal is false")
+		}
+		var confPath string
+		confPath, err = jail.CreateConfig(id, rootPath)
+		if err != nil {
+			return err
+		}
+		if err := jail.CreateJail(cmd.Context(), confPath); err != nil {
+			return err
+		}
+
+		// Setup and start the "runj-entrypoint" helper program in order to
+		// get the container STDIO hooked up properly.
+		var entrypoint *exec.Cmd
+		entrypoint, err = jail.SetupEntrypoint(id, ociConfig.Process.Args, *consoleSocket)
+		if err != nil {
+			return err
+		}
+		// the runj-entrypoint pid will become the container process's pid
+		// through a series of exec(2) calls
+		s.PID = entrypoint.Process.Pid
+		return nil
+	}
+	return create
 }

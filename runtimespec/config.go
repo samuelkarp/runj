@@ -63,10 +63,10 @@ User
 
 // Process contains information to start a specific application inside the container.
 type Process struct {
+	// Terminal creates an interactive terminal for the container.
+	Terminal bool `json:"terminal,omitempty"`
 	// Modification by Samuel Karp
 	/*
-		// Terminal creates an interactive terminal for the container.
-		Terminal bool `json:"terminal,omitempty"`
 		// ConsoleSize specifies the size of the console.
 		ConsoleSize *Box `json:"consoleSize,omitempty"`
 		// User specifies user information for the process.
