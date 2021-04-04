@@ -24,7 +24,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 
+	"github.com/containerd/console"
 	"golang.org/x/sys/unix"
 )
 
@@ -38,6 +40,10 @@ func main() {
 
 var usage = errors.New("usage: runj-entrypoint JAIL-ID FIFO-PATH PROGRAM [ARGS...]")
 
+const (
+	consoleSocketEnv = "__RUNJ_CONSOLE_SOCKET"
+)
+
 func _main() (int, error) {
 	if len(os.Args) < 4 {
 		return 1, usage
@@ -46,22 +52,70 @@ func _main() (int, error) {
 	fifoPath := os.Args[2]
 	argv := os.Args[3:]
 
+	jexecPath, err := exec.LookPath("jexec")
+	if err != nil {
+		return 5, fmt.Errorf("failed to find jexec: %w", err)
+	}
+	if err := setupConsole(); err != nil {
+		return 2, err
+	}
+
 	// Block until `runj start` is invoked
 	fifofd, err := unix.Open(fifoPath, unix.O_WRONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
-		return 2, fmt.Errorf("failed to open fifo: %w", err)
+		return 3, fmt.Errorf("failed to open fifo: %w", err)
 	}
 	if _, err := unix.Write(fifofd, []byte("0")); err != nil {
-		return 3, fmt.Errorf("failed to write to fifo: %w", err)
+		return 4, fmt.Errorf("failed to write to fifo: %w", err)
 	}
 
 	// call unix.Exec (which is execve(2)) to replace this process with the jexec
-	jexecPath, err := exec.LookPath("jexec")
-	if err != nil {
-		return 4, fmt.Errorf("failed to find jexec: %w", err)
-	}
 	if err := unix.Exec(jexecPath, append([]string{"jexec", jid}, argv...), unix.Environ()); err != nil {
-		return 5, fmt.Errorf("failed to exec: %w", err)
+		return 6, fmt.Errorf("failed to exec: %w", err)
 	}
 	return 0, nil
+}
+
+func setupConsole() error {
+	socketFdArg := os.Getenv(consoleSocketEnv)
+	if socketFdArg == "" {
+		return nil
+	}
+	socketFd, err := strconv.Atoi(socketFdArg)
+	if err != nil {
+		return fmt.Errorf("console: bad socket fd: %w", err)
+	}
+	socket := os.NewFile(uintptr(socketFd), "console-socket")
+	// TODO clear env variable
+	defer socket.Close()
+
+	pty, slavePath, err := console.NewPty()
+	if err != nil {
+		return err
+	}
+	defer pty.Close()
+
+	if err := SendFd(socket, pty.Name(), pty.Fd()); err != nil {
+		return err
+	}
+	return dupStdio(slavePath)
+}
+
+// dupStdio opens the slavePath for the console and dups the fds to the current
+// processes stdio, fd 0,1,2.
+func dupStdio(slavePath string) error {
+	fd, err := unix.Open(slavePath, unix.O_RDWR, 0)
+	if err != nil {
+		return &os.PathError{
+			Op:   "open",
+			Path: slavePath,
+			Err:  err,
+		}
+	}
+	for _, i := range []int{0, 1, 2} {
+		if err := unix.Dup2(fd, i); err != nil {
+			return err
+		}
+	}
+	return nil
 }

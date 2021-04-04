@@ -6,6 +6,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/Microsoft/hcsshim v0.8.11 // indirect
 	github.com/cheggaaa/pb/v3 v3.0.5
+	github.com/containerd/console v1.0.1
 	github.com/containerd/containerd v1.4.3
 	github.com/containerd/fifo v0.0.0-20201026212402-0724c46b320c
 	github.com/containerd/go-runc v0.0.0-20200220073739-7016d3ce2328
