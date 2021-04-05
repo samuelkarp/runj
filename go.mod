@@ -18,9 +18,11 @@ require (
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.5.1
-	golang.org/x/sys v0.0.0-20201202213521-69691e467435
+	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
 	google.golang.org/grpc v1.34.0 // indirect
 	gotest.tools/v3 v3.0.3 // indirect
 )
 
 replace github.com/containerd/containerd => github.com/samuelkarp/containerd v0.2.4-0.20201218175053-b667c15ed877
+
+replace github.com/containerd/console => github.com/samuelkarp/console v1.0.2-0.20210405024843-6ebf47122b27
