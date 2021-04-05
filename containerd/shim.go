@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/console"
+
 	"go.sbk.wtf/runj/state"
 
 	"github.com/containerd/containerd/api/events"
@@ -167,6 +169,8 @@ type service struct {
 	waitblock chan struct{}
 	// stdioFifo is a slice of io.Closer to close when the jail exits
 	stdioFifo []io.Closer
+	// con is the console for the main process
+	con console.Console
 }
 
 // StartShim is called whenever a new container is created.  The role of the
@@ -404,12 +408,13 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		closeOnErr = append(closeOnErr, stderr)
 	}
 
-	err = execCreate(ctx, req.ID, req.Bundle, stdin, stdout, stderr, req.Terminal)
+	con, err := execCreate(ctx, req.ID, req.Bundle, stdin, stdout, stderr, req.Terminal)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to create jail")
 		return nil, err
 	}
 	s.setStdioFifo(closeOnErr)
+	s.setConsole(con)
 
 	ociState, err := execState(ctx, req.ID)
 	if err != nil {
@@ -498,6 +503,20 @@ func (s *service) getStdioFifo() []io.Closer {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]io.Closer{}, s.stdioFifo...)
+}
+
+func (s *service) setConsole(con console.Console) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.con = con
+}
+
+func (s *service) getConsole() console.Console {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.con
 }
 
 // sendUnsafe sends an event without acquiring the event lock
@@ -630,7 +649,25 @@ func (s *service) Exec(ctx context.Context, req *task.ExecProcessRequest) (*type
 
 func (s *service) ResizePty(ctx context.Context, req *task.ResizePtyRequest) (*types.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("RESIZEPTY")
-	return nil, errdefs.ErrNotImplemented
+	if req.ExecID != "" {
+		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
+		return nil, errdefs.ErrNotImplemented
+	}
+	if req.ID != s.id {
+		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
+		return nil, errdefs.ErrInvalidArgument
+	}
+	con := s.getConsole()
+	if con == nil {
+		return nil, errdefs.ErrUnavailable
+	}
+	if err := con.Resize(console.WinSize{
+		Width:  uint16(req.Width),
+		Height: uint16(req.Height),
+	}); err != nil {
+		return nil, errdefs.ToGRPC(err)
+	}
+	return empty, nil
 }
 
 func (s *service) CloseIO(ctx context.Context, req *task.CloseIORequest) (*types.Empty, error) {

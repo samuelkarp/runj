@@ -19,7 +19,7 @@ import (
 )
 
 // execCreate runs the "create" subcommand for runj
-func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout io.Writer, stderr io.Writer, terminal bool) error {
+func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout io.Writer, stderr io.Writer, terminal bool) (console.Console, error) {
 	args := []string{"create", id, bundle}
 	var socket *runc.Socket
 	if terminal {
@@ -27,7 +27,7 @@ func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout 
 		var err error
 		socket, err = runc.NewTempConsoleSocket()
 		if err != nil {
-			return fmt.Errorf("create: failed to create runj console socket: %w", err)
+			return nil, fmt.Errorf("create: failed to create runj console socket: %w", err)
 		}
 		defer socket.Close()
 		args = append(args, "--console-socket", socket.Path())
@@ -43,15 +43,16 @@ func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout 
 	log.G(ctx).WithField("id", id).WithField("args", args).Warn("Starting runj create")
 	ec, err := reaper.Default.Start(cmd)
 
+	var con console.Console
 	if socket != nil {
-		console, err := socket.ReceiveMaster()
+		con, err = socket.ReceiveMaster()
 		if err != nil {
-			return errors.Wrap(err, "failed to retrieve console master")
+			return nil, errors.Wrap(err, "failed to retrieve console master")
 		}
 		log.G(ctx).WithField("id", id).Warn("Received console master!")
-		err = copyConsole(ctx, console, stdin, stdout, stderr)
+		err = copyConsole(ctx, con, stdin, stdout, stderr)
 		if err != nil {
-			return errors.Wrap(err, "failed to start console copy")
+			return nil, errors.Wrap(err, "failed to start console copy")
 		}
 		log.G(ctx).WithField("id", id).Warn("Copying console!")
 	}
@@ -60,7 +61,7 @@ func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout 
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("id", id).Error("runj create failed")
 	}
-	return err
+	return con, err
 }
 
 func copyConsole(ctx context.Context, console console.Console, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
