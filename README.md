@@ -23,6 +23,7 @@ runj currently supports the following parts of the OCI runtime spec:
 * Config
   - Root path
   - Process args
+  - Process environment
   - Process terminal
 
 ## Getting started
