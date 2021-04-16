@@ -81,8 +81,13 @@ type Process struct {
 	/*
 		// CommandLine specifies the full command line for the application to execute on Windows.
 		CommandLine string `json:"commandLine,omitempty" platform:"windows"`
-		// Env populates the process environment for the process.
-		Env []string `json:"env,omitempty"`
+	*/
+
+	// Env populates the process environment for the process.
+	Env []string `json:"env,omitempty"`
+
+	// Modification by Samuel Karp`
+	/*
 		// Cwd is the current working directory for the process and must be
 		// relative to the container's root.
 		Cwd string `json:"cwd"`

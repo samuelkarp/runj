@@ -29,7 +29,7 @@ const (
 // This indirection is necessary so that the STDIO for `runj create` or the
 // supplied console socket is directed to that process.
 // Note: this API is unstable; expect it to change.
-func SetupEntrypoint(id string, argv []string, consoleSocketPath string) (*exec.Cmd, error) {
+func SetupEntrypoint(id string, argv []string, env []string, consoleSocketPath string) (*exec.Cmd, error) {
 	path, err := createExecFifo(id)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func SetupEntrypoint(id string, argv []string, consoleSocketPath string) (*exec.
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
+	cmd.Env = env
 
 	// the caller of runj will handle receiving the console master
 	if consoleSocketPath != "" {

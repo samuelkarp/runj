@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 
 	"github.com/containerd/console"
@@ -41,6 +40,7 @@ func main() {
 var usage = errors.New("usage: runj-entrypoint JAIL-ID FIFO-PATH PROGRAM [ARGS...]")
 
 const (
+	jexecPath        = "/usr/sbin/jexec"
 	consoleSocketEnv = "__RUNJ_CONSOLE_SOCKET"
 )
 
@@ -52,10 +52,6 @@ func _main() (int, error) {
 	fifoPath := os.Args[2]
 	argv := os.Args[3:]
 
-	jexecPath, err := exec.LookPath("jexec")
-	if err != nil {
-		return 5, fmt.Errorf("failed to find jexec: %w", err)
-	}
 	if err := setupConsole(); err != nil {
 		return 2, err
 	}
@@ -81,6 +77,7 @@ func setupConsole() error {
 	if socketFdArg == "" {
 		return nil
 	}
+	os.Unsetenv(consoleSocketEnv)
 	socketFd, err := strconv.Atoi(socketFdArg)
 	if err != nil {
 		return fmt.Errorf("console: bad socket fd: %w", err)
