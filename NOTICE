@@ -109,7 +109,9 @@ github.com/containerd/fifo - Copyright The containerd Authors
 github.com/containerd/go-runc - Copyright The containerd Authors
 github.com/containerd/ttrpc - Copyright The containerd Authors
 github.com/containerd/typeurl - Copyright The containerd Authors
+github.com/moby/sys/mountinfo - No copyright notice provided
 github.com/opencontainers/go-digest - Copyright 2019, 2020 OCI Contributors; Copyright 2016 Docker, Inc.
+github.com/opencontainers/image-spec - Copyright 2016 The Linux Foundation.
 github.com/opencontainers/runtime-spec - Copyright 2015 The Linux Foundation.
 github.com/spf13/cobra - Copyright © 2015 Steve Francia <spf@spf13.com>.
 google.golang.org/genproto - Copyright 2019 Google LLC
