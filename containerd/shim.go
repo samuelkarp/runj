@@ -44,8 +44,10 @@ func NewService(ctx context.Context, id string, publisher shim.Publisher, shutdo
 		cancel:  shutdown,
 		events:  make(chan interface{}, 128),
 		// subscribe to the reaper to receive process exit information
-		exits:     reaper.Default.Subscribe(),
-		waitblock: make(chan struct{}, 0),
+		exits: reaper.Default.Subscribe(),
+		primary: managedProcess{
+			waitblock: make(chan struct{}, 0),
+		},
 	}
 
 	if address, err := shim.ReadAddress("address"); err == nil {
@@ -72,7 +74,7 @@ func (s *service) processExits() {
 // checkProcesses records exit data for processes inside the jail.  The only
 // process currently handled is the init/main process.
 func (s *service) checkProcesses(e runc.Exit) {
-	pid := s.getPID()
+	pid := s.primary.GetPID()
 	if e.Pid != pid {
 		return
 	}
@@ -83,7 +85,7 @@ func (s *service) checkProcesses(e runc.Exit) {
 	if err != nil {
 		logrus.WithError(err).WithField("id", s.id).Error("failed to kill init's children")
 	}
-	s.setExited(e)
+	s.primary.SetExited(e)
 	s.sendL(&events.TaskExit{
 		ContainerID: s.id,
 		ID:          s.id,
@@ -91,11 +93,11 @@ func (s *service) checkProcesses(e runc.Exit) {
 		ExitStatus:  uint32(e.Status),
 		ExitedAt:    e.Timestamp,
 	})
-	for _, c := range s.getStdioFifo() {
+	for _, c := range s.primary.GetStdioFifo() {
 		c.Close()
 	}
 	// indicate that results are now ready for any pending Wait calls
-	close(s.waitblock)
+	close(s.primary.waitblock)
 }
 
 // forward forwards events to the shim.Publisher
@@ -162,15 +164,9 @@ type service struct {
 
 	mu         sync.Mutex
 	bundlePath string
-	pid        int
-	// exit records exit details for the jail
-	exit runc.Exit
-	// waitblock is a channel signaling the end of jail execution
-	waitblock chan struct{}
-	// stdioFifo is a slice of io.Closer to close when the jail exits
-	stdioFifo []io.Closer
-	// con is the console for the main process
-	con console.Console
+	// primary is the primary process for the jail.  The lifetime of the jail
+	// is tied to this process.
+	primary managedProcess
 }
 
 // StartShim is called whenever a new container is created.  The role of the
@@ -413,8 +409,8 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		log.G(ctx).WithError(err).Error("failed to create jail")
 		return nil, err
 	}
-	s.setStdioFifo(closeOnErr)
-	s.setConsole(con)
+	s.primary.SetStdioFifo(closeOnErr)
+	s.primary.SetConsole(con)
 
 	ociState, err := execState(ctx, req.ID)
 	if err != nil {
@@ -423,7 +419,7 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	}
 
 	log.G(ctx).WithField("pid", ociState.PID).Warn("entrypoint waiting!")
-	s.setPID(ociState.PID)
+	s.primary.SetPID(ociState.PID)
 
 	s.sendL(&events.TaskCreate{
 		ContainerID: req.ID,
@@ -453,70 +449,6 @@ func (s *service) getBundlePath() string {
 	defer s.mu.Unlock()
 
 	return s.bundlePath
-}
-
-func (s *service) setPID(p int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.pid != 0 && s.pid != p {
-		return errors.New("cannot re-set pid to different value")
-	}
-	s.pid = p
-	return nil
-}
-
-// getPID retrieves the PID of the jail's main process
-func (s *service) getPID() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.pid
-}
-
-func (s *service) setExited(e runc.Exit) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.exit = e
-}
-
-func (s *service) getExited() runc.Exit {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.exit
-}
-
-func (s *service) setStdioFifo(stdio []io.Closer) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if len(s.stdioFifo) > 0 {
-		return errors.New("cannot re-set stdioFifo to different value")
-	}
-	s.stdioFifo = stdio
-	return nil
-}
-
-func (s *service) getStdioFifo() []io.Closer {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return append([]io.Closer{}, s.stdioFifo...)
-}
-
-func (s *service) setConsole(con console.Console) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.con = con
-}
-
-func (s *service) getConsole() console.Console {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.con
 }
 
 // sendUnsafe sends an event without acquiring the event lock
@@ -554,7 +486,7 @@ func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.Stat
 		Status: runjStatusToContainerdStatus(ociState.Status),
 	}
 	if resp.Status == tasktypes.StatusStopped {
-		exit := s.getExited()
+		exit := s.primary.GetExited()
 		resp.ExitedAt = exit.Timestamp
 		resp.ExitStatus = uint32(exit.Status)
 	}
@@ -657,7 +589,7 @@ func (s *service) ResizePty(ctx context.Context, req *task.ResizePtyRequest) (*t
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
 		return nil, errdefs.ErrInvalidArgument
 	}
-	con := s.getConsole()
+	con := s.primary.GetConsole()
 	if con == nil {
 		return nil, errdefs.ErrUnavailable
 	}
@@ -694,8 +626,8 @@ func (s *service) Wait(ctx context.Context, req *task.WaitRequest) (*task.WaitRe
 		return nil, errdefs.ErrInvalidArgument
 	}
 	// Only the init/main process of the jail is currently supported.  This logic will need to change for exec support.
-	<-s.waitblock
-	e := s.getExited()
+	<-s.primary.waitblock
+	e := s.primary.GetExited()
 	return &task.WaitResponse{
 		ExitStatus: uint32(e.Status),
 		ExitedAt:   e.Timestamp,
