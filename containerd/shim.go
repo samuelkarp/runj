@@ -422,7 +422,7 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		return nil, err
 	}
 
-	log.G(ctx).WithField("pid", ociState.PID).Warn("entrypoint waiting!")
+	log.G(ctx).WithField("pid", ociState.PID).WithField("state", ociState).Warn("entrypoint waiting!")
 	s.primary.SetPID(ociState.PID)
 
 	s.sendL(&events.TaskCreate{
@@ -489,6 +489,7 @@ func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.Stat
 		Pid:    uint32(ociState.PID),
 		Status: runjStatusToContainerdStatus(ociState.Status),
 	}
+	log.G(ctx).WithField("state", ociState).WithField("resp", resp).Warn("STATE")
 	if resp.Status == tasktypes.StatusStopped {
 		exit := s.primary.GetExited()
 		resp.ExitedAt = exit.Timestamp
@@ -513,7 +514,6 @@ func runjStatusToContainerdStatus(in string) tasktypes.Status {
 
 func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.StartResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("START")
-	log.G(ctx).WithField("req", req).Warn("KILL")
 	if req.ExecID != "" {
 		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
 		return nil, errdefs.ErrNotImplemented
@@ -526,7 +526,7 @@ func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.Star
 	if err != nil {
 		return nil, err
 	}
-
+	log.G(ctx).WithField("state", ociState).Warn("START")
 	// hold the sendUnsafe lock so that the start events are sent before any exit events in the error case
 	s.eventSendMu.Lock()
 	defer s.eventSendMu.Unlock()

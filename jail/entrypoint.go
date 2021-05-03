@@ -20,19 +20,32 @@ import (
 
 const (
 	execFifoFilename = "exec.fifo"
+	execSkipFifo     = "-"
 	consoleSocketEnv = "__RUNJ_CONSOLE_SOCKET"
 	stdioFdCount     = 3
 )
 
-// SetupEntrypoint starts a runj-entrypoint process, which then will later be
-// signalled through `runj start` to run the specified program in the jail.
-// This indirection is necessary so that the STDIO for `runj create` or the
-// supplied console socket is directed to that process.
+// SetupEntrypoint starts a runj-entrypoint process, which is used to start
+// processes inside the jail.
+//
+// When used to start the jail's init process, runj-entrypoint will later be
+// signalled through `runj start` to run the specified program in the jail. This
+// indirection is necessary so that the STDIO for `runj create` or the supplied
+// console socket is directed to that process.
+//
+// When used to start a secondary process inside the jail, the waiting step is
+// skipped and runj-entrypoint will immediately proceed to create the process
+// as soon as STDIO is configured.
+//
 // Note: this API is unstable; expect it to change.
-func SetupEntrypoint(id string, argv []string, env []string, consoleSocketPath string) (*exec.Cmd, error) {
-	path, err := createExecFifo(id)
-	if err != nil {
-		return nil, err
+func SetupEntrypoint(id string, init bool, argv []string, env []string, consoleSocketPath string) (*exec.Cmd, error) {
+	path := execSkipFifo
+	if init {
+		var err error
+		path, err = createExecFifo(id)
+		if err != nil {
+			return nil, err
+		}
 	}
 	args := append([]string{id, path}, argv...)
 	cmd := exec.Command("runj-entrypoint", args...)

@@ -16,6 +16,7 @@ func main() {
 	rootCmd.AddCommand(startCommand())
 	rootCmd.AddCommand(killCommand())
 	rootCmd.AddCommand(deleteCommand())
+	rootCmd.AddCommand(extCommand())
 	rootCmd.AddCommand(demoCommand())
 	err := rootCmd.Execute()
 	if err != nil {

@@ -137,7 +137,7 @@ the console's pseudoterminal`)
 		// Setup and start the "runj-entrypoint" helper program in order to
 		// get the container STDIO hooked up properly.
 		var entrypoint *exec.Cmd
-		entrypoint, err = jail.SetupEntrypoint(id, ociConfig.Process.Args, ociConfig.Process.Env, *consoleSocket)
+		entrypoint, err = jail.SetupEntrypoint(id, true, ociConfig.Process.Args, ociConfig.Process.Env, *consoleSocket)
 		if err != nil {
 			return err
 		}
