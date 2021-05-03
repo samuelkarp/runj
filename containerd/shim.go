@@ -81,7 +81,7 @@ func (s *service) checkProcesses(e runc.Exit) {
 	log.G(s.context).WithField("pid", e.Pid).Warn("INIT EXITED!")
 
 	// Ensure all children are killed
-	err := execKill(s.context, s.id, unix.SIGKILL.String(), true)
+	err := execKill(s.context, s.id, "KILL", true)
 	if err != nil {
 		logrus.WithError(err).WithField("id", s.id).Error("failed to kill init's children")
 	}
@@ -307,6 +307,10 @@ func (s *service) Delete(ctx context.Context, req *task.DeleteRequest) (*task.De
 
 // delete performs work that is common between Cleanup and Delete.
 func (s *service) delete(ctx context.Context, bundlePath string) (*task.DeleteResponse, error) {
+	if err := execKill(ctx, s.id, "KILL", true); err != nil {
+		log.G(ctx).WithError(err).Error("failed to run runj kill --all")
+		return nil, err
+	}
 	if err := execDelete(ctx, s.id); err != nil {
 		log.G(ctx).WithError(err).Error("failed to run runj delete")
 		return nil, err
