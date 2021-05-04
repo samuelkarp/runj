@@ -6,10 +6,34 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"strconv"
 )
 
-func IsRunning(ctx context.Context, jail string) (bool, error) {
-	cmd := exec.CommandContext(ctx, "ps", "--libxo", "json", "-x", "-J", jail)
+// IsRunning attempts to determine whether a given jail is running.  This is
+// accomplished by looking to see whether the jail's primary pid (passed as an
+// argument) is still active and by whether there are any processes present in
+// the jail.  This function is best-effort, racy, and subject to change.  It
+// currently depends on the host's "ps" command.
+func IsRunning(ctx context.Context, jail string, pid int) (bool, error) {
+	if pid > 0 {
+		if ok, err := psCmd(exec.CommandContext(ctx, "ps", "--libxo", "json", "-x", strconv.Itoa(pid))); err != nil {
+			return false, err
+		} else if ok {
+			// if the primary pid is present, we're done
+			return true, nil
+		}
+	}
+
+	if ok, err := psCmd(exec.CommandContext(ctx, "ps", "--libxo", "json", "-x", "-J", jail)); err != nil {
+		return false, err
+	} else {
+		return ok, nil
+	}
+}
+
+// psCmd executes a "ps" command provided as an *exec.Cmd and output with libxo
+// json and parses the result to determine whether any processes are running.
+func psCmd(cmd *exec.Cmd) (bool, error) {
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {

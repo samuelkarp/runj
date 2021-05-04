@@ -43,7 +43,7 @@ func startCommand() *cobra.Command {
 				return err
 			}
 			if s.Status == state.StatusRunning {
-				if ok, err := jail.IsRunning(cmd.Context(), id); ok {
+				if ok, err := jail.IsRunning(cmd.Context(), id, s.PID); ok {
 					return errors.New("cannot start already running container")
 				} else if err != nil {
 					return err

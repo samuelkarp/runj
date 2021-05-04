@@ -31,7 +31,7 @@ func deleteCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			disableUsage(cmd)
 			id := args[0]
-			running, err := jail.IsRunning(cmd.Context(), id)
+			running, err := jail.IsRunning(cmd.Context(), id, 0)
 			if err != nil {
 				return fmt.Errorf("delete: failed to determine if jail is running: %w", err)
 			}
