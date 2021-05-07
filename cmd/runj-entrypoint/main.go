@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"syscall"
 
 	"github.com/containerd/console"
 	"golang.org/x/sys/unix"
@@ -120,6 +121,14 @@ func dupStdio(slavePath string) error {
 			Path: slavePath,
 			Err:  err,
 		}
+	}
+
+	if _, err := syscall.Setsid(); err != nil {
+		return err
+	}
+
+	if _, _, err := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), unix.TIOCSCTTY, uintptr(0)); err != 0 {
+		return err
 	}
 	for _, i := range []int{0, 1, 2} {
 		if err := unix.Dup2(fd, i); err != nil {
