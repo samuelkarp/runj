@@ -2,7 +2,8 @@ package containerd
 
 import (
 	"context"
-	"io"
+	"encoding/json"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,10 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/console"
-
 	"go.sbk.wtf/runj/state"
 
+	"github.com/containerd/console"
 	"github.com/containerd/containerd/api/events"
 	tasktypes "github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/errdefs"
@@ -27,10 +27,11 @@ import (
 	"github.com/containerd/containerd/runtime/v2/task"
 	taskAPI "github.com/containerd/containerd/runtime/v2/task"
 	"github.com/containerd/containerd/sys/reaper"
-	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
+	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
 	ptypes "github.com/gogo/protobuf/types"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -48,6 +49,7 @@ func NewService(ctx context.Context, id string, publisher shim.Publisher, shutdo
 		primary: managedProcess{
 			waitblock: make(chan struct{}, 0),
 		},
+		auxiliary: make(map[string]*managedProcess),
 	}
 
 	if address, err := shim.ReadAddress("address"); err == nil {
@@ -74,30 +76,50 @@ func (s *service) processExits() {
 // checkProcesses records exit data for processes inside the jail.  The only
 // process currently handled is the init/main process.
 func (s *service) checkProcesses(e runc.Exit) {
-	pid := s.primary.GetPID()
-	if e.Pid != pid {
+	proc, id := s.findProcess(e.Pid)
+	if proc == nil {
 		return
 	}
-	log.G(s.context).WithField("pid", e.Pid).Warn("INIT EXITED!")
-
-	// Ensure all children are killed
-	err := execKill(s.context, s.id, "KILL", true)
-	if err != nil {
-		logrus.WithError(err).WithField("id", s.id).Error("failed to kill init's children")
+	if id == "" {
+		log.G(s.context).WithField("pid", e.Pid).Warn("INIT EXITED!")
+	} else {
+		log.G(s.context).WithField("pid", e.Pid).Warn("AUX EXITED!")
 	}
-	s.primary.SetExited(e)
+
+	if id == "" {
+		// When the primary process (which has no id) exits, all children should be killed
+		err := execKill(s.context, s.id, "KILL", true, 0)
+		if err != nil {
+			logrus.WithError(err).WithField("id", s.id).Error("failed to kill init's children")
+		}
+	}
+	proc.SetState(state.StatusStopped)
+	proc.SetExited(e)
 	s.sendL(&events.TaskExit{
 		ContainerID: s.id,
-		ID:          s.id,
+		ID:          id,
 		Pid:         uint32(e.Pid),
 		ExitStatus:  uint32(e.Status),
 		ExitedAt:    e.Timestamp,
 	})
-	for _, c := range s.primary.GetStdioFifo() {
-		c.Close()
-	}
+	proc.GetStdio().Close()
 	// indicate that results are now ready for any pending Wait calls
-	close(s.primary.waitblock)
+	close(proc.waitblock)
+}
+
+func (s *service) findProcess(pid int) (*managedProcess, string) {
+	primaryPid := s.primary.GetPID()
+	if pid == primaryPid {
+		return &s.primary, ""
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, aux := range s.auxiliary {
+		if aux.GetPID() == pid {
+			return aux, id
+		}
+	}
+	return nil, ""
 }
 
 // forward forwards events to the shim.Publisher
@@ -167,6 +189,8 @@ type service struct {
 	// primary is the primary process for the jail.  The lifetime of the jail
 	// is tied to this process.
 	primary managedProcess
+	// auxiliary is a map of additional processes that run in the jail.
+	auxiliary map[string]*managedProcess
 }
 
 // StartShim is called whenever a new container is created.  The role of the
@@ -288,13 +312,12 @@ func (s *service) Cleanup(ctx context.Context) (*task.DeleteResponse, error) {
 // happen in Shutdown.
 func (s *service) Delete(ctx context.Context, req *task.DeleteRequest) (*task.DeleteResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("DELETE")
-	if req.ExecID != "" {
-		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
-		return nil, errdefs.ErrNotImplemented
-	}
 	if req.ID != s.id {
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
 		return nil, errdefs.ErrInvalidArgument
+	}
+	if req.ExecID != "" {
+		return s.deleteAux(ctx, req.ExecID)
 	}
 	path := s.getBundlePath()
 	if path == "" {
@@ -307,7 +330,7 @@ func (s *service) Delete(ctx context.Context, req *task.DeleteRequest) (*task.De
 
 // delete performs work that is common between Cleanup and Delete.
 func (s *service) delete(ctx context.Context, bundlePath string) (*task.DeleteResponse, error) {
-	if err := execKill(ctx, s.id, "KILL", true); err != nil {
+	if err := execKill(ctx, s.id, "KILL", true, 0); err != nil {
 		log.G(ctx).WithError(err).Error("failed to run runj kill --all")
 		return nil, err
 	}
@@ -318,6 +341,33 @@ func (s *service) delete(ctx context.Context, bundlePath string) (*task.DeleteRe
 	if err := mount.UnmountAll(filepath.Join(bundlePath, "rootfs"), 0); err != nil {
 		log.G(ctx).WithError(err).Warn("failed to cleanup rootfs mount")
 	}
+	return &taskAPI.DeleteResponse{
+		ExitedAt:   time.Now(),
+		ExitStatus: 128 + uint32(unix.SIGKILL),
+	}, nil
+}
+
+func (s *service) deleteAux(ctx context.Context, id string) (*task.DeleteResponse, error) {
+	log.G(ctx).WithField("execID", id).Warn("Delete Exec!")
+	aux := s.getAuxiliary(id)
+	if aux == nil {
+		log.G(ctx).WithField("execID", id).Debug("delete: exec process not found")
+		return nil, errdefs.ErrNotFound
+	}
+	auxState := aux.GetState()
+	switch auxState {
+	case state.StatusRunning:
+		// process must not be running
+		return nil, errdefs.ErrInvalidArgument
+	case state.StatusCreating, state.StatusCreated:
+		close(aux.waitblock)
+	}
+
+	if specfile := aux.GetSpecfile(); specfile != "" {
+		os.Remove(specfile)
+		aux.SetSpecfile("")
+	}
+	s.deleteAuxiliary(id)
 	return &taskAPI.DeleteResponse{
 		ExitedAt:   time.Now(),
 		ExitStatus: 128 + uint32(unix.SIGKILL),
@@ -372,48 +422,24 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		}
 	}
 
-	var closeOnErr []io.Closer
+	var pio stdio
+	pio, err = setupIO(ctx, req.Stdin, req.Stdout, req.Stderr)
 	defer func() {
 		if err == nil {
 			return
 		}
-		for _, c := range closeOnErr {
-			c.Close()
-		}
+		pio.Close()
 	}()
-	var (
-		stdin  io.ReadWriteCloser
-		stdout io.ReadWriteCloser
-		stderr io.ReadWriteCloser
-	)
-	if _, err := os.Stat(req.Stdin); err == nil {
-		stdin, err = fifo.OpenFifo(ctx, req.Stdin, syscall.O_RDONLY|syscall.O_NONBLOCK, 0)
-		if err != nil {
-			return nil, err
-		}
-		closeOnErr = append(closeOnErr, stdin)
-	}
-	if _, err := os.Stat(req.Stdout); err == nil {
-		stdout, err = fifo.OpenFifo(ctx, req.Stdout, syscall.O_WRONLY, 0)
-		if err != nil {
-			return nil, err
-		}
-		closeOnErr = append(closeOnErr, stdout)
-	}
-	if _, err := os.Stat(req.Stderr); err == nil {
-		stderr, err = fifo.OpenFifo(ctx, req.Stderr, syscall.O_WRONLY, 0)
-		if err != nil {
-			return nil, err
-		}
-		closeOnErr = append(closeOnErr, stderr)
+	if err != nil {
+		return nil, err
 	}
 
-	con, err := execCreate(ctx, req.ID, req.Bundle, stdin, stdout, stderr, req.Terminal)
+	con, err := execCreate(ctx, req.ID, req.Bundle, pio.stdin, pio.stdout, pio.stderr, req.Terminal)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to create jail")
 		return nil, err
 	}
-	s.primary.SetStdioFifo(closeOnErr)
+	s.primary.SetStdio(pio)
 	s.primary.SetConsole(con)
 
 	ociState, err := execState(ctx, req.ID)
@@ -455,6 +481,44 @@ func (s *service) getBundlePath() string {
 	return s.bundlePath
 }
 
+func (s *service) getAuxiliary(id string) *managedProcess {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if aux, ok := s.auxiliary[id]; ok {
+		return aux
+	}
+	return nil
+}
+
+func (s *service) newAuxiliary(id string) *managedProcess {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.auxiliary[id]; ok {
+		return nil
+	}
+
+	s.auxiliary[id] = &managedProcess{
+		waitblock: make(chan struct{}, 0),
+	}
+	return s.auxiliary[id]
+}
+
+func (s *service) setAuxiliary(id string, aux *managedProcess) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.auxiliary[id] = aux
+}
+
+func (s *service) deleteAuxiliary(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.auxiliary, id)
+}
+
 // sendUnsafe sends an event without acquiring the event lock
 func (s *service) sendUnsafe(evt interface{}) {
 	s.events <- evt
@@ -468,11 +532,13 @@ func (s *service) sendL(evt interface{}) {
 	s.events <- evt
 }
 
+// State returns the state of the container.  The returned state is a composite
+// of the state information from the underlying container and information that
+// was recorded by this shim (exit information from the primary process).
 func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.StateResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("STATE")
 	if req.ExecID != "" {
-		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
-		return nil, errdefs.ErrNotImplemented
+		return s.stateAux(ctx, req.ExecID)
 	}
 	if req.ID != s.id {
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
@@ -498,6 +564,23 @@ func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.Stat
 	return resp, nil
 }
 
+func (s *service) stateAux(ctx context.Context, id string) (*task.StateResponse, error) {
+	log.G(ctx).WithField("execID", id).Error("Exec state!")
+	aux := s.getAuxiliary(id)
+	if aux == nil {
+		return nil, errdefs.ErrNotFound
+	}
+	exit := aux.GetExited()
+	return &task.StateResponse{
+		ID:         s.id,
+		ExecID:     id,
+		Pid:        uint32(aux.GetPID()),
+		Status:     runjStatusToContainerdStatus(string(aux.GetState())),
+		ExitedAt:   exit.Timestamp,
+		ExitStatus: uint32(exit.Status),
+	}, nil
+}
+
 func runjStatusToContainerdStatus(in string) tasktypes.Status {
 	switch state.Status(in) {
 	case state.StatusCreating:
@@ -512,17 +595,25 @@ func runjStatusToContainerdStatus(in string) tasktypes.Status {
 	return tasktypes.StatusUnknown
 }
 
+// Start is responsible for starting processes inside a container.  Start can be
+// used to either start the container's primary process (previously specified
+// with Create) or a secondary process (previously specified with Exec).  When
+// used for the primary process, Start invokes "runj start".  When used for a
+// secondary process, Start invokes "runj exec".
 func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.StartResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("START")
-	if req.ExecID != "" {
-		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
-		return nil, errdefs.ErrNotImplemented
-	}
 	if req.ID != s.id {
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
 		return nil, errdefs.ErrInvalidArgument
 	}
-	ociState, err := execState(ctx, s.id)
+	if req.ExecID == "" {
+		return s.startPrimary(ctx, s.id)
+	}
+	return s.startAux(ctx, s.id, req.ExecID)
+}
+
+func (s *service) startPrimary(ctx context.Context, id string) (*task.StartResponse, error) {
+	ociState, err := execState(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -534,6 +625,7 @@ func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.Star
 	if err != nil {
 		return nil, err
 	}
+	log.G(ctx).WithField("state", ociState).Warn("START runj")
 
 	s.sendUnsafe(&events.TaskStart{
 		ContainerID: s.id,
@@ -541,6 +633,39 @@ func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.Star
 	})
 	return &task.StartResponse{
 		Pid: uint32(ociState.PID),
+	}, nil
+}
+
+func (s *service) startAux(ctx context.Context, id, execID string) (*task.StartResponse, error) {
+	proc := s.getAuxiliary(execID)
+	if proc == nil {
+		return nil, errdefs.ErrNotFound
+	}
+	if proc.GetState() != state.StatusCreated {
+		return nil, errdefs.ErrInvalidArgument
+	}
+	log.G(ctx).WithField("execID", execID).Warn("START EXEC")
+	// hold the sendUnsafe lock so that the start events are sent before any exit events in the error case
+	s.eventSendMu.Lock()
+	defer s.eventSendMu.Unlock()
+	pio := proc.GetStdio()
+
+	pid, err := execExec(ctx, id, proc.GetSpecfile(), pio.stdin, pio.stdout, pio.stderr)
+	log.G(ctx).WithField("execID", execID).WithError(err).Warn("START EXEC runj")
+	if err != nil {
+		proc.SetState(state.StatusStopped)
+		close(proc.waitblock)
+		return nil, err
+	}
+	proc.SetPID(pid)
+	proc.SetState(state.StatusRunning)
+
+	s.sendUnsafe(&events.TaskStart{
+		ContainerID: id,
+		Pid:         uint32(pid),
+	})
+	return &task.StartResponse{
+		Pid: uint32(pid),
 	}, nil
 }
 
@@ -564,23 +689,85 @@ func (s *service) Checkpoint(ctx context.Context, req *task.CheckpointTaskReques
 	return nil, errdefs.ErrNotImplemented
 }
 
+// Kill sends signals to processes inside a container
 func (s *service) Kill(ctx context.Context, req *task.KillRequest) (*types.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("KILL")
+	pid := 0
 	if req.ExecID != "" {
-		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
-		return nil, errdefs.ErrNotImplemented
+		log.G(ctx).WithField("execID", req.ExecID).Error("Exec kill aux!")
+		aux := s.getAuxiliary(req.ExecID)
+		if aux == nil {
+			return nil, errdefs.ErrNotFound
+		}
+		if aux.GetState() != state.StatusRunning {
+			return nil, errdefs.ErrInvalidArgument
+		}
+		pid = aux.GetPID()
+		if pid == 0 {
+			return nil, errdefs.ErrInvalidArgument
+		}
 	}
 	if req.ID != s.id {
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
 		return nil, errdefs.ErrInvalidArgument
 	}
-	err := execKill(ctx, s.id, strconv.FormatUint(uint64(req.Signal), 10), req.All)
+	err := execKill(ctx, s.id, strconv.FormatUint(uint64(req.Signal), 10), req.All, pid)
 	return nil, err
 }
 
+// Exec sets up a new secondary process that should be run in the container, but
+// does not start the process.  After calling Exec to set up the process
+// (including its args, environment, and IO), call Start to start it.
 func (s *service) Exec(ctx context.Context, req *task.ExecProcessRequest) (*types.Empty, error) {
-	log.G(ctx).WithField("req", req).Warn("EXEC")
-	return nil, errdefs.ErrNotImplemented
+	l := log.G(ctx).WithField("id", req.ID).WithField("execID", req.ExecID)
+	l.WithField("req", req).Warn("EXEC")
+	specAny, err := typeurl.UnmarshalAny(req.Spec)
+	if err != nil {
+		l.WithError(err).Error("failed to unmarshal spec")
+		return nil, errdefs.ErrInvalidArgument
+	}
+	spec, ok := specAny.(*specs.Process)
+	if !ok {
+		l.Error("mismatched type for spec")
+		return nil, errdefs.ErrInvalidArgument
+	}
+	l.WithField("spec", spec).Warn("EXEC")
+	aux := s.newAuxiliary(req.ExecID)
+	if aux == nil {
+		return nil, errdefs.ErrAlreadyExists
+	}
+	aux.SetSpec(spec)
+	aux.SetState(state.StatusCreated)
+
+	var pio stdio
+	pio, err = setupIO(ctx, req.Stdin, req.Stdout, req.Stderr)
+	defer func() {
+		if err == nil {
+			return
+		}
+		pio.Close()
+	}()
+	if err != nil {
+		return nil, err
+	}
+	aux.SetStdio(pio)
+
+	f, err := ioutil.TempFile("", "runj-process")
+	if err != nil {
+		return nil, err
+	}
+	err = json.NewEncoder(f).Encode(spec)
+	f.Close()
+	if err != nil {
+		return nil, err
+	}
+	aux.SetSpecfile(f.Name())
+
+	s.sendL(&events.TaskExecAdded{
+		ContainerID: s.id,
+		ExecID:      req.ExecID,
+	})
+	return empty, nil
 }
 
 func (s *service) ResizePty(ctx context.Context, req *task.ResizePtyRequest) (*types.Empty, error) {
@@ -621,17 +808,22 @@ func (s *service) Update(ctx context.Context, req *task.UpdateTaskRequest) (*typ
 // SIGCHLD handler, reaper, and subscribed goroutine.
 func (s *service) Wait(ctx context.Context, req *task.WaitRequest) (*task.WaitResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("WAIT")
-	if req.ExecID != "" {
-		log.G(ctx).WithField("execID", req.ExecID).Error("Exec not implemented!")
-		return nil, errdefs.ErrNotImplemented
-	}
+	l := log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id)
 	if req.ID != s.id {
-		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
+		l.Error("mismatched IDs")
 		return nil, errdefs.ErrInvalidArgument
 	}
+	proc := &s.primary
+	if req.ExecID != "" {
+		if proc = s.getAuxiliary(req.ExecID); proc == nil {
+			l.Error("Cannot find aux process")
+			return nil, errdefs.ErrNotFound
+		}
+	}
 	// Only the init/main process of the jail is currently supported.  This logic will need to change for exec support.
-	<-s.primary.waitblock
-	e := s.primary.GetExited()
+	<-proc.waitblock
+	e := proc.GetExited()
+	l.WithField("pid", e.Pid).WithField("status", e.Status).Warn("Process exited")
 	return &task.WaitResponse{
 		ExitStatus: uint32(e.Status),
 		ExitedAt:   e.Timestamp,

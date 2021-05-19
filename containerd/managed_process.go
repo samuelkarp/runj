@@ -2,11 +2,13 @@ package containerd
 
 import (
 	"errors"
-	"io"
 	"sync"
+
+	"go.sbk.wtf/runj/state"
 
 	"github.com/containerd/console"
 	runc "github.com/containerd/go-runc"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // managedProcess contains the state for a process that is managed by the runj
@@ -18,10 +20,21 @@ type managedProcess struct {
 	exit runc.Exit
 	// waitblock is a channel signaling the end of process execution
 	waitblock chan struct{}
-	// stdioFifo is a slice of io.Closer to close when the process exits
-	stdioFifo []io.Closer
+	// pio is the process I/O.  Each non-nil stream should be closed when the
+	// process exits
+	pio stdio
 	// con is the console for the process
 	con console.Console
+
+	// auxiliary processes have additional data not maintained for the primary
+	// process
+
+	// spec is the process specification for the auxiliary process
+	spec *specs.Process
+	// specfile is the file where the spec is serialized
+	specfile string
+	// state is the state of the auxiliary process
+	state state.Status
 }
 
 // SetPID stores the PID of the process
@@ -60,24 +73,20 @@ func (m *managedProcess) GetExited() runc.Exit {
 	return m.exit
 }
 
-// SetStdioFifo stores the io.Closers to be closed when the process exits
-func (m *managedProcess) SetStdioFifo(stdio []io.Closer) error {
+// SetStdio stores the process IO streams
+func (m *managedProcess) SetStdio(pio stdio) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if len(m.stdioFifo) > 0 {
-		return errors.New("cannot re-set stdioFifo to different value")
-	}
-	m.stdioFifo = stdio
+	m.pio = pio
 	return nil
 }
 
-// GetStdioFifo retrieves the io.Closers that should be closed when the process
-// exits
-func (m *managedProcess) GetStdioFifo() []io.Closer {
+// GetStdio retrieves the process IO streams
+func (m *managedProcess) GetStdio() stdio {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return append([]io.Closer{}, m.stdioFifo...)
+	return m.pio
 }
 
 // SetConsole stores the console for the process
@@ -94,4 +103,46 @@ func (m *managedProcess) GetConsole() console.Console {
 	defer m.mu.Unlock()
 
 	return m.con
+}
+
+func (m *managedProcess) SetSpec(spec *specs.Process) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.spec = spec
+}
+
+func (m *managedProcess) GetSpec() *specs.Process {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.spec
+}
+
+func (m *managedProcess) SetSpecfile(specfile string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.specfile = specfile
+}
+
+func (m *managedProcess) GetSpecfile() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.specfile
+}
+
+func (m *managedProcess) SetState(state state.Status) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.state = state
+}
+
+func (m *managedProcess) GetState() state.Status {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.state
 }

@@ -14,6 +14,16 @@ for how many shim processes should be in-use.  For the `wtf.sbk.runj.v1` shim
 here, the initial design uses one shim process per container to simplify the
 logic.  This may be adjusted later.
 
+## Exec
+The OCI spec does not define an "exec" command to execute a new process inside a
+container.  However, containerd and other container runtimes expect to use such
+functionality.  runc implements "exec" and containerd uses it.
+
+* Shim Exec() creates an in-memory exec process struct associated with a given
+  string ID
+* Shim Start() takes the ID and invokes "runc exec" after setting up IO/console
+* "runc exec" sets up IO and starts a process inside the container
+
 ## containerd bugs?
 
 ### Race in `TaskManager.Create`

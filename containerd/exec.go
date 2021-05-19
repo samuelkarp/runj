@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strconv"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -135,10 +136,13 @@ func execDelete(ctx context.Context, id string) error {
 }
 
 // execKill runs the "kill" subcommand for runj
-func execKill(ctx context.Context, id string, signal string, all bool) error {
+func execKill(ctx context.Context, id string, signal string, all bool, pid int) error {
 	args := []string{"kill", id, signal}
 	if all {
 		args = append(args, "--all")
+	}
+	if pid != 0 {
+		args = append(args, "--pid", strconv.Itoa(pid))
 	}
 	cmd := exec.CommandContext(ctx, "runj", args...)
 	b, err := combinedOutput(cmd)
@@ -158,6 +162,23 @@ func execStart(ctx context.Context, id string) error {
 		return err
 	}
 	return nil
+}
+
+// execExec runs the "extension exec" subcommand for runj
+func execExec(ctx context.Context, id, processJsonFilename string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
+	cmd := exec.CommandContext(ctx, "runj", "extension", "exec", id, "--process", processJsonFilename)
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	if cmd.Stderr == nil {
+		cmd.Stderr = log.G(ctx).WriterLevel(logrus.WarnLevel)
+	}
+	log.G(ctx).WithField("id", id).Warn("Starting runj extension exec")
+	err := cmd.Start()
+	if err != nil {
+		return 0, err
+	}
+	return cmd.Process.Pid, nil
 }
 
 func combinedOutput(cmd *exec.Cmd) ([]byte, error) {
