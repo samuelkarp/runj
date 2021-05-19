@@ -78,6 +78,7 @@ func execCommand() *cobra.Command {
 			process.Args = args[1:]
 		}
 
+		cmd.SilenceErrors = true
 		// Setup and start the "runj-entrypoint" helper program in order to
 		// get the container STDIO hooked up properly.
 		var entrypoint *exec.Cmd

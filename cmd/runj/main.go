@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 )
@@ -20,7 +21,11 @@ func main() {
 	rootCmd.AddCommand(demoCommand())
 	err := rootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		code := 1
+		if e, ok := err.(*exec.ExitError); ok {
+			code = e.ExitCode()
+		}
+		os.Exit(code)
 	}
 }
 
