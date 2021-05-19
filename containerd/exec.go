@@ -39,7 +39,7 @@ func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout 
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if terminal && cmd.Stderr == nil {
-		cmd.Stderr = log.G(ctx).WriterLevel(logrus.WarnLevel)
+		cmd.Stderr = log.G(ctx).WithField("cmd", "runj create").WriterLevel(logrus.WarnLevel)
 	}
 	log.G(ctx).WithField("id", id).WithField("args", args).Warn("Starting runj create")
 	ec, err := reaper.Default.Start(cmd)
@@ -66,7 +66,6 @@ func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout 
 }
 
 func copyConsole(ctx context.Context, console console.Console, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	// TODO figure out whether we need a waitgroup for process stdio
 	var cwg sync.WaitGroup
 	if stdin != nil {
 		cwg.Add(1)
@@ -165,20 +164,49 @@ func execStart(ctx context.Context, id string) error {
 }
 
 // execExec runs the "extension exec" subcommand for runj
-func execExec(ctx context.Context, id, processJsonFilename string, stdin io.Reader, stdout io.Writer, stderr io.Writer) (int, error) {
-	cmd := exec.CommandContext(ctx, "runj", "extension", "exec", id, "--process", processJsonFilename)
+func execExec(ctx context.Context, id, processJsonFilename string, stdin io.Reader, stdout io.Writer, stderr io.Writer, terminal bool) (int, console.Console, error) {
+	args := []string{"extension", "exec", id, "--process", processJsonFilename}
+	var socket *runc.Socket
+	if terminal {
+		log.G(ctx).WithField("id", id).Warn("Creating terminal!")
+		var err error
+		socket, err = runc.NewTempConsoleSocket()
+		if err != nil {
+			return -1, nil, fmt.Errorf("create: failed to create runj console socket: %w", err)
+		}
+		defer socket.Close()
+		args = append(args, "--console-socket", socket.Path())
+	}
+
+	cmd := exec.CommandContext(ctx, "runj", args...)
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if cmd.Stderr == nil {
-		cmd.Stderr = log.G(ctx).WriterLevel(logrus.WarnLevel)
+		cmd.Stderr = log.G(ctx).WithField("cmd", "runj ext exec").WriterLevel(logrus.WarnLevel)
 	}
 	log.G(ctx).WithField("id", id).Warn("Starting runj extension exec")
 	err := cmd.Start()
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
-	return cmd.Process.Pid, nil
+	pid := cmd.Process.Pid
+
+	var con console.Console
+	if socket != nil {
+		con, err = socket.ReceiveMaster()
+		if err != nil {
+			return pid, nil, errors.Wrap(err, "failed to retrieve console master")
+		}
+		log.G(ctx).WithField("id", id).Warn("Received exec console master!")
+		err = copyConsole(ctx, con, stdin, stdout, stderr)
+		if err != nil {
+			return pid, nil, errors.Wrap(err, "failed to start console copy")
+		}
+		log.G(ctx).WithField("id", id).Warn("Copying exec console!")
+	}
+
+	return pid, con, nil
 }
 
 func combinedOutput(cmd *exec.Cmd) ([]byte, error) {
