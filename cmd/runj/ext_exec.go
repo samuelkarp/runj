@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"os/exec"
 
 	"go.sbk.wtf/runj/oci"
 	"go.sbk.wtf/runj/runtimespec"
@@ -81,12 +80,7 @@ func execCommand() *cobra.Command {
 		cmd.SilenceErrors = true
 		// Setup and start the "runj-entrypoint" helper program in order to
 		// get the container STDIO hooked up properly.
-		var entrypoint *exec.Cmd
-		entrypoint, err = jail.SetupEntrypoint(id, false, process.Args, process.Env, "")
-		if err != nil {
-			return err
-		}
-		return entrypoint.Wait()
+		return jail.ExecEntrypoint(id, process.Args, process.Env, "")
 	}
 	return execCmd
 }

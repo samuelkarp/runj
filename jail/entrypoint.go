@@ -77,6 +77,31 @@ func SetupEntrypoint(id string, init bool, argv []string, env []string, consoleS
 	return cmd, cmd.Start()
 }
 
+func ExecEntrypoint(id string, argv []string, env []string, consoleSocketPath string) error {
+	// the caller of runj will handle receiving the console master
+	if consoleSocketPath != "" {
+		conn, err := net.Dial("unix", consoleSocketPath)
+		if err != nil {
+			return err
+		}
+		uc, ok := conn.(*net.UnixConn)
+		if !ok {
+			return errors.New("casting to UnixConn failed")
+		}
+		consoleSocket, err := uc.File()
+		if err != nil {
+			return err
+		}
+		fd, err := unix.Dup(int(consoleSocket.Fd()))
+		if err != nil {
+			return err
+		}
+		env = append(env, consoleSocketEnv+"="+strconv.Itoa(int(fd)))
+	}
+	args := append([]string{"runj-entrypoint", id, execSkipFifo}, argv...)
+	return unix.Exec("/usr/local/bin/runj-entrypoint", args, env)
+}
+
 // CleanupEntrypoint sends a SIGTERM to the PID recorded in the state file.
 // This function returns with no error even if the process is not running or
 // cannot be signaled.
