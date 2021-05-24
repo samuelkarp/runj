@@ -2,8 +2,12 @@ task:
   name: CI
   freebsd_instance:
     image_family: freebsd-13-0
+  go_modules_cache:
+    folder: .gomodcache
   setup_script:
     - pkg install -y go
+    - go env -w GOMODCACHE=$(pwd)/.gomodcache
+    - go mod download
   build_script:
     - make
   test_script:
