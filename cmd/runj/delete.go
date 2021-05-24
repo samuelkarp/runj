@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"go.sbk.wtf/runj/state"
-
 	"go.sbk.wtf/runj/jail"
+	"go.sbk.wtf/runj/oci"
+	"go.sbk.wtf/runj/runtimespec"
+	"go.sbk.wtf/runj/state"
 
 	"github.com/spf13/cobra"
 )
@@ -47,6 +48,18 @@ func deleteCommand() *cobra.Command {
 				return errors.New("invalid jail id provided")
 			}
 			err = jail.DestroyJail(cmd.Context(), confPath, id)
+			if err != nil {
+				return err
+			}
+			var ociConfig *runtimespec.Spec
+			ociConfig, err = oci.LoadConfig(id)
+			if err != nil {
+				return err
+			}
+			if ociConfig == nil {
+				return errors.New("OCI config is required")
+			}
+			err = jail.Unmount(ociConfig)
 			if err != nil {
 				return err
 			}

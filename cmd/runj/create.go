@@ -103,12 +103,18 @@ the console's pseudoterminal`)
 		if err != nil {
 			return err
 		}
+		if ociConfig == nil {
+			return errors.New("OCI config is required")
+		}
 		rootPath := filepath.Join(bundle, "root")
-		if ociConfig != nil && ociConfig.Root != nil && ociConfig.Root.Path != "" {
+		if ociConfig.Root != nil && ociConfig.Root.Path != "" {
 			rootPath = ociConfig.Root.Path
 			if rootPath[0] != filepath.Separator {
 				rootPath = filepath.Join(bundle, rootPath)
 			}
+			ociConfig.Root.Path = rootPath
+		} else {
+			ociConfig.Root = &runtimespec.Root{Path: rootPath}
 		}
 		// console socket validation
 		if ociConfig.Process.Terminal {
@@ -133,6 +139,16 @@ the console's pseudoterminal`)
 		if err := jail.CreateJail(cmd.Context(), confPath); err != nil {
 			return err
 		}
+		err = jail.Mount(ociConfig)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err == nil {
+				return
+			}
+			jail.Unmount(ociConfig)
+		}()
 
 		// Setup and start the "runj-entrypoint" helper program in order to
 		// get the container STDIO hooked up properly.

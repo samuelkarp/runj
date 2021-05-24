@@ -165,6 +165,12 @@ func exampleSpec() *runtimespec.Spec {
 		Root: &runtimespec.Root{
 			Path: "rootfs",
 		},
+		Mounts: []runtimespec.Mount{{
+			Destination: "/dev",
+			Source:      "devfs",
+			Type:        "devfs",
+			Options:     []string{"ruleset=4"},
+		}},
 	}
 }
 
