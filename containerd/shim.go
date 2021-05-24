@@ -200,13 +200,13 @@ type service struct {
 // or some other decision.  When this function returns, the current process
 // exits.  If there is no existing shim with an address to use, this function
 // must fork a new shim process.
-func (s *service) StartShim(ctx context.Context, id, containerdBinary, containerdAddress, containerdTTRPCAddress string) (string, error) {
-	cmd, err := newReexec(ctx, id, containerdAddress)
+func (s *service) StartShim(ctx context.Context, opts shim.StartOpts) (string, error) {
+	cmd, err := newReexec(ctx, opts.ID, opts.Address)
 	if err != nil {
 		return "", err
 	}
 
-	address, err := shim.SocketAddress(ctx, containerdAddress, id)
+	address, err := shim.SocketAddress(ctx, opts.Address, opts.ID)
 	if err != nil {
 		return "", err
 	}
