@@ -12,7 +12,7 @@ func FreeBSDVersion(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	vers := strings.Split(string(version), "-")
+	vers := strings.Split(strings.TrimSpace(string(version)), "-")
 	if len(vers) < 2 {
 		return vers[0], nil
 	}
