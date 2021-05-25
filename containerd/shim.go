@@ -68,7 +68,7 @@ func NewService(ctx context.Context, id string, publisher shim.Publisher, shutdo
 // processExits handles exits for child processes inside the jail
 func (s *service) processExits() {
 	for e := range s.exits {
-		log.G(s.context).WithField("pid", e.Pid).Warn("PROCESSING EXIT!")
+		log.G(s.context).WithField("pid", e.Pid).WithField("status", e.Status).Warn("PROCESSING EXIT!")
 		s.checkProcesses(e)
 	}
 }
@@ -382,6 +382,7 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		return nil, errdefs.ErrInvalidArgument
 	}
 	s.setBundlePath(req.Bundle)
+	err := filterIncompatibleLinuxMounts(req.Bundle)
 
 	var mounts []process.Mount
 	for _, m := range req.Rootfs {
@@ -401,7 +402,6 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 			return nil, err
 		}
 	}
-	var err error
 	defer func() {
 		if err != nil {
 			log.G(ctx).WithField("rootfs", rootfs).WithError(err).Error("failed to create,unmounting rootfs")
