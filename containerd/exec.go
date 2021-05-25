@@ -74,10 +74,14 @@ func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout 
 		}()
 	}
 
-	_, err = WaitNoFlush(cmd, ec)
+	ret, err := WaitNoFlush(cmd, ec)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("id", id).Error("runj create failed")
 		return nil, err
+	}
+	if ret != 0 {
+		log.G(ctx).WithField("exit", ret).Error("runj create failed")
+		return nil, errors.New("runj create failed")
 	}
 	if socket != nil {
 		ret := <-ready
