@@ -43,26 +43,47 @@ func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout 
 	}
 	log.G(ctx).WithField("id", id).WithField("args", args).Warn("Starting runj create")
 	ec, err := reaper.Default.Start(cmd)
+	if err != nil {
+		return nil, err
+	}
 
-	var con console.Console
+	ready := make(chan struct {
+		con console.Console
+		err error
+	})
 	if socket != nil {
-		con, err = socket.ReceiveMaster()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to retrieve console master")
-		}
-		log.G(ctx).WithField("id", id).Warn("Received console master!")
-		err = copyConsole(ctx, con, stdin, stdout, stderr)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to start console copy")
-		}
-		log.G(ctx).WithField("id", id).Warn("Copying console!")
+		go func() {
+			con, err := func() (console.Console, error) {
+				con, err := socket.ReceiveMaster()
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to retrieve console master")
+				}
+				log.G(ctx).WithField("id", id).Warn("Received console master!")
+				err = copyConsole(ctx, con, stdin, stdout, stderr)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to start console copy")
+				}
+				log.G(ctx).WithField("id", id).Warn("Copying console!")
+				return con, nil
+			}()
+			ready <- struct {
+				con console.Console
+				err error
+			}{con, err}
+			close(ready)
+		}()
 	}
 
 	_, err = WaitNoFlush(cmd, ec)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("id", id).Error("runj create failed")
+		return nil, err
 	}
-	return con, err
+	if socket != nil {
+		ret := <-ready
+		return ret.con, ret.err
+	}
+	return nil, nil
 }
 
 func copyConsole(ctx context.Context, console console.Console, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
