@@ -18,7 +18,9 @@ func SetReaper() error {
 }
 
 const (
-	_P_PID             = 0 // https://github.com/freebsd/freebsd-src/blob/098dbd7ff7f3da9dda03802cdb2d8755f816eada/sys/sys/wait.h#L109
+	//nolint:golint // match symbol name
+	_P_PID = 0 // https://github.com/freebsd/freebsd-src/blob/098dbd7ff7f3da9dda03802cdb2d8755f816eada/sys/sys/wait.h#L109
+	//nolint:golint // match symbol name
 	_PROC_REAP_ACQUIRE = 2 // https://github.com/freebsd/freebsd-src/blob/098dbd7ff7f3da9dda03802cdb2d8755f816eada/sys/sys/procctl.h#L49
 )
 

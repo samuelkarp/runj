@@ -9,23 +9,35 @@ import (
 
 const stateFile = "state.json"
 
+// Status is the type for representing container status
 type Status string
 
 const (
+	// StatusCreating represents a container in the process of being created
 	StatusCreating Status = "creating"
-	StatusCreated  Status = "created"
-	StatusRunning  Status = "running"
-	StatusStopped  Status = "stopped"
+	// StatusCreated represents a container that has been created but not started
+	StatusCreated Status = "created"
+	// StatusRunning represents a running container
+	StatusRunning Status = "running"
+	// StatusStopped represents a container that has exited
+	StatusStopped Status = "stopped"
 )
 
+// State represents the state of a container
 type State struct {
-	ID     string
-	JID    int
+	// ID is the ID of the container
+	ID string
+	// JID is the jail ID of the jail backing the container
+	JID int
+	// Status is the status of the container
 	Status Status
+	// Bundle is the directory containing the config and rootfs
 	Bundle string
-	PID    int
+	// PID is the primary process ID
+	PID int
 }
 
+// Load reads the state from disk and parses it
 func Load(id string) (*State, error) {
 	d, err := ioutil.ReadFile(filepath.Join(Dir(id), stateFile))
 	if err != nil {
@@ -50,6 +62,7 @@ func (s *State) initialize() error {
 	return s.Save()
 }
 
+// Save saves the state to disk
 func (s *State) Save() error {
 	f, err := ioutil.TempFile(Dir(s.ID), "state")
 	if err != nil {

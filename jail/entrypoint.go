@@ -77,6 +77,10 @@ func SetupEntrypoint(id string, init bool, argv []string, env []string, consoleS
 	return cmd, cmd.Start()
 }
 
+// ExecEntrypoint execs a runj-entrypoint process in order to start processes
+// inside the jail.
+//
+// Note: this API is unstable; expect it to change.
 func ExecEntrypoint(id string, argv []string, env []string, consoleSocketPath string) error {
 	// the caller of runj will handle receiving the console master
 	if consoleSocketPath != "" {
@@ -139,6 +143,9 @@ func fifoPath(id string) string {
 	return filepath.Join(state.Dir(id), execFifoFilename)
 }
 
+// AwaitFifoOpen waits for a runj-entrypoint process to open the fifo passed to
+// it.  The fifo is used to indicate when runj-entrypoint should start the
+// process inside the jail.
 func AwaitFifoOpen(ctx context.Context, id string) error {
 	type openResult struct {
 		file *os.File

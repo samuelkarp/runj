@@ -44,7 +44,7 @@ func main() {
 	os.Exit(exit)
 }
 
-var usage = errors.New("usage: runj-entrypoint JAIL-ID FIFO-PATH PROGRAM [ARGS...]")
+var errUsage = errors.New("usage: runj-entrypoint JAIL-ID FIFO-PATH PROGRAM [ARGS...]")
 
 const (
 	jexecPath        = "/usr/sbin/jexec"
@@ -56,7 +56,7 @@ const (
 
 func _main() (int, error) {
 	if len(os.Args) < 4 {
-		return 1, usage
+		return 1, errUsage
 	}
 	jid := os.Args[1]
 	fifoPath := os.Args[2]

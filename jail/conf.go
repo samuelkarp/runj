@@ -19,6 +19,7 @@ const (
 `
 )
 
+// CreateConfig creates a config file for the jail(8) command
 func CreateConfig(id, root string) (string, error) {
 	config, err := renderConfig(id, root)
 	if err != nil {
@@ -42,6 +43,7 @@ func CreateConfig(id, root string) (string, error) {
 	return confFile.Name(), nil
 }
 
+// ConfPath returns the expected file path for a given jail's config file
 func ConfPath(id string) string {
 	return filepath.Join(state.Dir(id), confName)
 }

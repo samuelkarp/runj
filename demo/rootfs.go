@@ -3,7 +3,6 @@ package demo
 import (
 	"archive/tar"
 	"compress/gzip"
-	_ "crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +14,8 @@ import (
 	"runtime"
 	"strings"
 
+	_ "crypto/sha256" // register SHA256 hash for digest
+
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -24,6 +25,7 @@ const (
 	freeBSDDownload = "http://ftp.freebsd.org/pub/FreeBSD/releases/%s/%s/base.txz"
 )
 
+// DownloadRootfs downloads a FreeBSD root filesystem
 func DownloadRootfs(arch, version string) (io.ReadCloser, int64, error) {
 	req, err := http.Get(fmt.Sprintf(freeBSDDownload, arch, version))
 	if err != nil {
@@ -35,6 +37,7 @@ func DownloadRootfs(arch, version string) (io.ReadCloser, int64, error) {
 	return req.Body, req.ContentLength, nil
 }
 
+// MakeImage constructs a single-layer FreeBSD OCI image from a given input tar
 func MakeImage(rootfsFilename string, outputFilename string, arch string) error {
 	tempDir, err := ioutil.TempDir("", "runj-demo-rootfs-")
 	if err != nil {
@@ -112,11 +115,11 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 		},
 		Author: "runj <runj@sbk.wtf>",
 	}
-	configJson, err := json.Marshal(config)
+	configJSON, err := json.Marshal(config)
 	if err != nil {
 		return err
 	}
-	configDigest, err := writeBlob(blobDir, configJson)
+	configDigest, err := writeBlob(blobDir, configJSON)
 
 	// manifest
 	manifest := v1.Manifest{
@@ -124,7 +127,7 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 		Config: v1.Descriptor{
 			MediaType: v1.MediaTypeImageConfig,
 			Digest:    configDigest,
-			Size:      int64(len(configJson)),
+			Size:      int64(len(configJSON)),
 		},
 		Layers: []v1.Descriptor{{
 			MediaType: v1.MediaTypeImageLayerGzip,
@@ -132,30 +135,30 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 			Size:      compressedInfo.Size(),
 		}},
 	}
-	manifestJson, err := json.Marshal(manifest)
+	manifestJSON, err := json.Marshal(manifest)
 	if err != nil {
 		return err
 	}
-	manifestDigest, err := writeBlob(blobDir, manifestJson)
+	manifestDigest, err := writeBlob(blobDir, manifestJSON)
 	// index
 	index := v1.Index{
 		Versioned: specs.Versioned{SchemaVersion: 2},
 		Manifests: []v1.Descriptor{{
 			MediaType: v1.MediaTypeImageManifest,
 			Digest:    manifestDigest,
-			Size:      int64(len(manifestJson)),
+			Size:      int64(len(manifestJSON)),
 			Platform: &v1.Platform{
 				Architecture: arch,
 				OS:           freebsd,
 			},
 		}},
 	}
-	indexJson, err := json.Marshal(index)
+	indexJSON, err := json.Marshal(index)
 	if err != nil {
 		return err
 	}
 	// image index
-	err = ioutil.WriteFile(filepath.Join(imageDir, "index.json"), indexJson, 0644)
+	err = ioutil.WriteFile(filepath.Join(imageDir, "index.json"), indexJSON, 0644)
 	if err != nil {
 		return err
 	}

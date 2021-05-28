@@ -24,11 +24,14 @@ func IsRunning(ctx context.Context, jail string, pid int) (bool, error) {
 		}
 	}
 
-	if ok, err := psCmd(exec.CommandContext(ctx, "ps", "--libxo", "json", "-x", "-J", jail)); err != nil {
+	var (
+		ok  bool
+		err error
+	)
+	if ok, err = psCmd(exec.CommandContext(ctx, "ps", "--libxo", "json", "-x", "-J", jail)); err != nil {
 		return false, err
-	} else {
-		return ok, nil
 	}
+	return ok, nil
 }
 
 // psCmd executes a "ps" command provided as an *exec.Cmd and output with libxo

@@ -93,6 +93,7 @@ func stateCommand() *cobra.Command {
 	}
 }
 
+// StateOutput is the expected output format for the state command
 /*
 {
     "ociVersion": "0.2.0",

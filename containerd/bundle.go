@@ -61,9 +61,9 @@ func filterIncompatibleLinuxMounts(bundle string) error {
 	if bundle == "" {
 		return nil
 	}
-	configJson := filepath.Join(bundle, "config.json")
+	configJSON := filepath.Join(bundle, "config.json")
 	spec := &specs.Spec{}
-	configBytes, err := ioutil.ReadFile(configJson)
+	configBytes, err := ioutil.ReadFile(configJSON)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func filterIncompatibleLinuxMounts(bundle string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(configJson, out, 0)
+	return ioutil.WriteFile(configJSON, out, 0)
 }
 
 // equalMounts compares two mounts to determine whether they are equal

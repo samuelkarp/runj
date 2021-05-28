@@ -189,8 +189,8 @@ func execStart(ctx context.Context, id string) error {
 }
 
 // execExec runs the "extension exec" subcommand for runj
-func execExec(ctx context.Context, id, processJsonFilename string, stdin io.Reader, stdout io.Writer, stderr io.Writer, terminal bool) (int, console.Console, error) {
-	args := []string{"extension", "exec", id, "--process", processJsonFilename}
+func execExec(ctx context.Context, id, processJSONFilename string, stdin io.Reader, stdout io.Writer, stderr io.Writer, terminal bool) (int, console.Console, error) {
+	args := []string{"extension", "exec", id, "--process", processJSONFilename}
 	var socket *runc.Socket
 	if terminal {
 		log.G(ctx).WithField("id", id).Warn("Creating terminal!")

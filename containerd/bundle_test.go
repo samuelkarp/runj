@@ -88,15 +88,15 @@ func TestFilterIncompatibleLinuxMounts(t *testing.T) {
 			}()
 			inBytes, err := json.Marshal(&specs.Spec{Mounts: tc.in})
 			require.NoError(t, err, "failed to marshal input")
-			configJson := filepath.Join(dir, "config.json")
-			err = ioutil.WriteFile(configJson, inBytes, 0644)
+			configJSON := filepath.Join(dir, "config.json")
+			err = ioutil.WriteFile(configJSON, inBytes, 0644)
 			require.NoError(t, err, "failed to write config.json")
 
 			err = filterIncompatibleLinuxMounts(dir)
 			require.NoError(t, err, "failed filter")
 
 			out := &specs.Spec{}
-			outBytes, err := ioutil.ReadFile(configJson)
+			outBytes, err := ioutil.ReadFile(configJSON)
 			require.NoError(t, err, "failed to read config.json")
 			err = json.Unmarshal(outBytes, out)
 			require.NoError(t, err, "failed to unmarshal config.json")

@@ -7,11 +7,10 @@ import (
 	"io/ioutil"
 	"os"
 
-	"go.sbk.wtf/runj/oci"
-	"go.sbk.wtf/runj/runtimespec"
-
 	"github.com/spf13/cobra"
 	"go.sbk.wtf/runj/jail"
+	"go.sbk.wtf/runj/oci"
+	"go.sbk.wtf/runj/runtimespec"
 	"go.sbk.wtf/runj/state"
 )
 
@@ -34,7 +33,7 @@ func execCommand() *cobra.Command {
 		Long:  "The exec command executes a new process in the context of an existing jail",
 		Args:  cobra.MinimumNArgs(1),
 	}
-	processJsonFlag := execCmd.Flags().StringP("process", "p", "", "process.json")
+	processJSONFlag := execCmd.Flags().StringP("process", "p", "", "process.json")
 	consoleSocket := execCmd.Flags().String(
 		"console-socket",
 		"",
@@ -42,7 +41,7 @@ func execCommand() *cobra.Command {
 file descriptor referencing the master end of
 the console's pseudoterminal`)
 	execCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		if processJsonFlag == nil || *processJsonFlag == "" {
+		if processJSONFlag == nil || *processJSONFlag == "" {
 			// 2 args are required when -p not specified
 			return cobra.MinimumNArgs(2)(cmd, args)
 		}
@@ -66,8 +65,8 @@ the console's pseudoterminal`)
 		}
 
 		var process runtimespec.Process
-		if processJsonFlag != nil && *processJsonFlag != "" {
-			data, err := ioutil.ReadFile(*processJsonFlag)
+		if processJSONFlag != nil && *processJSONFlag != "" {
+			data, err := ioutil.ReadFile(*processJSONFlag)
 			if err != nil {
 				return err
 			}
@@ -91,10 +90,8 @@ the console's pseudoterminal`)
 			}
 			if socketStat, err := os.Stat(*consoleSocket); err != nil {
 				return fmt.Errorf("failed to stat console socket %q: %w", *consoleSocket, err)
-			} else {
-				if socketStat.Mode()&os.ModeSocket != os.ModeSocket {
-					return fmt.Errorf("console-socket %q is not a socket", *consoleSocket)
-				}
+			} else if socketStat.Mode()&os.ModeSocket != os.ModeSocket {
+				return fmt.Errorf("console-socket %q is not a socket", *consoleSocket)
 			}
 		} else if *consoleSocket != "" {
 			return errors.New("console-socket provided but Process.Terminal is false")

@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	// ConfigFileName is the name of the config file
 	ConfigFileName = "config.json"
 )
 

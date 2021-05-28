@@ -123,10 +123,8 @@ the console's pseudoterminal`)
 			}
 			if socketStat, err := os.Stat(*consoleSocket); err != nil {
 				return fmt.Errorf("failed to stat console socket %q: %w", *consoleSocket, err)
-			} else {
-				if socketStat.Mode()&os.ModeSocket != os.ModeSocket {
-					return fmt.Errorf("console-socket %q is not a socket", *consoleSocket)
-				}
+			} else if socketStat.Mode()&os.ModeSocket != os.ModeSocket {
+				return fmt.Errorf("console-socket %q is not a socket", *consoleSocket)
 			}
 		} else if *consoleSocket != "" {
 			return errors.New("console-socket provided but Process.Terminal is false")

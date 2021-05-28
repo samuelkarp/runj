@@ -83,9 +83,8 @@ func killCommand() *cobra.Command {
 		}
 		if all {
 			return jail.KillAll(cmd.Context(), id, signal)
-		} else {
-			return jail.Kill(cmd.Context(), id, pid, signal)
 		}
+		return jail.Kill(cmd.Context(), id, pid, signal)
 	}
 	return kill
 }
