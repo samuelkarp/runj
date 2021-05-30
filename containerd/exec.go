@@ -239,6 +239,9 @@ func combinedOutput(cmd *exec.Cmd) ([]byte, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stdout
 	ec, err := reaper.Default.Start(cmd)
+	if err != nil {
+		return nil, err
+	}
 	_, err = reaper.Default.Wait(cmd, ec)
 	b := stdout.Bytes()
 	return b, err

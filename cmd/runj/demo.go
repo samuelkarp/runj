@@ -59,10 +59,10 @@ func downloadRootfsCommand() *cobra.Command {
 			fmt.Println("Found version: ", *version)
 		}
 		f, err := os.OpenFile(*outputFilename, os.O_CREATE|os.O_WRONLY, 0644)
-		defer f.Close()
 		if err != nil {
 			return err
 		}
+		defer f.Close()
 		return downloadImage(*arch, *version, f)
 	}
 	return dl

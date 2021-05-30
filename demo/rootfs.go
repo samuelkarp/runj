@@ -120,6 +120,9 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 		return err
 	}
 	configDigest, err := writeBlob(blobDir, configJSON)
+	if err != nil {
+		return err
+	}
 
 	// manifest
 	manifest := v1.Manifest{
@@ -140,6 +143,9 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 		return err
 	}
 	manifestDigest, err := writeBlob(blobDir, manifestJSON)
+	if err != nil {
+		return err
+	}
 	// index
 	index := v1.Index{
 		Versioned: specs.Versioned{SchemaVersion: 2},
