@@ -708,7 +708,10 @@ func (s *service) Kill(ctx context.Context, req *task.KillRequest) (*types.Empty
 		return nil, errdefs.ErrInvalidArgument
 	}
 	err := execKill(ctx, s.id, strconv.FormatUint(uint64(req.Signal), 10), req.All, pid)
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
+	return empty, nil
 }
 
 // Exec sets up a new secondary process that should be run in the container, but
