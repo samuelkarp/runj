@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	freeBSDDownload = "http://ftp.freebsd.org/pub/FreeBSD/releases/%s/%s/base.txz"
+	freeBSDDownload = "https://download.freebsd.org/ftp/releases/%s/%s/base.txz"
 )
 
 // DownloadRootfs downloads a FreeBSD root filesystem
