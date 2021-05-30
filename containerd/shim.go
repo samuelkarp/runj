@@ -47,7 +47,7 @@ func NewService(ctx context.Context, id string, publisher shim.Publisher, shutdo
 		// subscribe to the reaper to receive process exit information
 		exits: reaper.Default.Subscribe(),
 		primary: managedProcess{
-			waitblock: make(chan struct{}, 0),
+			waitblock: make(chan struct{}),
 		},
 		auxiliary: make(map[string]*managedProcess),
 	}
@@ -500,7 +500,7 @@ func (s *service) newAuxiliary(id string) *managedProcess {
 	}
 
 	s.auxiliary[id] = &managedProcess{
-		waitblock: make(chan struct{}, 0),
+		waitblock: make(chan struct{}),
 	}
 	return s.auxiliary[id]
 }
