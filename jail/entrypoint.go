@@ -100,7 +100,7 @@ func ExecEntrypoint(id string, argv []string, env []string, consoleSocketPath st
 		if err != nil {
 			return err
 		}
-		env = append(env, consoleSocketEnv+"="+strconv.Itoa(int(fd)))
+		env = append(env, consoleSocketEnv+"="+strconv.Itoa(fd))
 	}
 	args := append([]string{"runj-entrypoint", id, execSkipFifo}, argv...)
 	return unix.Exec("/usr/local/bin/runj-entrypoint", args, env)
