@@ -505,13 +505,6 @@ func (s *service) newAuxiliary(id string) *managedProcess {
 	return s.auxiliary[id]
 }
 
-func (s *service) setAuxiliary(id string, aux *managedProcess) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.auxiliary[id] = aux
-}
-
 func (s *service) deleteAuxiliary(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
