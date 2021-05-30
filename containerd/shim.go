@@ -672,7 +672,7 @@ func (s *service) startAux(ctx context.Context, id, execID string) (*task.StartR
 	}, nil
 }
 
-func (s service) Pids(ctx context.Context, req *task.PidsRequest) (*task.PidsResponse, error) {
+func (s *service) Pids(ctx context.Context, req *task.PidsRequest) (*task.PidsResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("PIDS")
 	return nil, errdefs.ErrNotImplemented
 }
