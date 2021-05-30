@@ -1,0 +1,30 @@
+linters:
+  enable:
+    - structcheck
+    - varcheck
+    - staticcheck
+    - unconvert
+    - gofmt
+    - golint
+    - goimports
+    - ineffassign
+    - vet
+    - unused
+    - misspell
+    - gosimple
+    - deadcode
+  disable:
+    - errcheck
+
+issues:
+  include:
+    - EXC0002
+
+run:
+  timeout: 3m
+  skip-dirs:
+    - docs
+    - hack
+    - runtimespec
+  skip-files:
+    - cmd/runj-entrypoint/cmsg.go

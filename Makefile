@@ -24,6 +24,10 @@ install: runj containerd-shim-runj-v1
 test:
 	go test -v ./...
 
+.PHONY: lint
+lint:
+	GOOS=freebsd golangci-lint run
+
 .PHONY: clean
 clean:
 	rm -rf bin

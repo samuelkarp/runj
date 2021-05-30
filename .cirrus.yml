@@ -5,10 +5,11 @@ task:
   go_modules_cache:
     folder: .gomodcache
   setup_script:
-    - pkg install -y go
+    - pkg install -y go golangci-lint
     - go env -w GOMODCACHE=$(pwd)/.gomodcache
     - go mod download
   build_script:
     - make
   test_script:
     - make test
+    - make lint
