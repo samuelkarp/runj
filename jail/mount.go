@@ -1,6 +1,7 @@
 package jail
 
 import (
+	"os"
 	"path/filepath"
 
 	"github.com/containerd/containerd/mount"
@@ -27,15 +28,48 @@ func Mount(ociConfig *runtimespec.Spec) error {
 			Options: ociMount.Options,
 		}
 		if m.Source == "" {
+			// mount(8) requires a non-empty source
 			m.Source = "null"
 		}
 		dest := filepath.Join(ociConfig.Root.Path, ociMount.Destination)
+		if m.Type == "nullfs" {
+			stat, err := os.Stat(m.Source)
+			if err != nil {
+				return err
+			}
+			err = createIfNotExists(dest, stat.IsDir())
+			if err != nil {
+				return err
+			}
+		}
 		err = m.Mount(dest)
 		if err != nil {
 			return err
 		}
 		unwind = append(unwind, dest)
 	}
+	return nil
+}
+
+func createIfNotExists(path string, isDir bool) error {
+	_, err := os.Stat(path)
+	if err == nil {
+		return nil
+	}
+	if !os.IsNotExist(err) {
+		return nil
+	}
+	if isDir {
+		return os.MkdirAll(path, 0755)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE, 0755)
+	if err != nil {
+		return err
+	}
+	f.Close()
 	return nil
 }
 
