@@ -53,6 +53,11 @@ type Spec struct {
 		VM *VM `json:"vm,omitempty" platform:"vm"`
 	*/
 	// End of modification
+
+	// Modification by Cyril Zhang
+	// FreeBSD is platform-specific configuration for FreeBSD based containers.
+	FreeBSD *FreeBSD `json:"freebsd,omitempty" platform:"freebsd"`
+	// End of modification
 }
 
 // Modification by Samuel Karp
@@ -134,6 +139,26 @@ type Mount struct {
 	// Options are fstab style mount options.
 	Options []string `json:"options,omitempty"`
 }
+
+// Modification by Cyril Zhang
+// FreeBSD contains platform-specific configuration for FreeBSD based containers.
+type FreeBSD struct {
+	// RacctLimits specifies racct rules to apply to this jail.
+	RacctLimits []RacctLimit `json:"racct,omitempty"`
+}
+
+// RacctLimit is a racct rule to apply to a jail.
+type RacctLimit struct {
+	// Resource is the resource to set a limit on.
+	Resource string `json:"resource"`
+	// Action is what will happen if a process exceeds the allowed amount.
+	Action string `json:"action"`
+	// Amount is the allowed amount of the resource.
+	Amount string `json:"amount"`
+	// Per defines the entity that the amount applies to.
+	Per string `json:"per,omitempty"`
+}
+// End of modification
 
 // Modification by Samuel Karp
 /*

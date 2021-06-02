@@ -137,6 +137,16 @@ the console's pseudoterminal`)
 		if err := jail.CreateJail(cmd.Context(), confPath); err != nil {
 			return err
 		}
+		err = jail.Limit(id, ociConfig)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err == nil {
+				return
+			}
+			jail.Unlimit(id, ociConfig)
+		}()
 		err = jail.Mount(ociConfig)
 		if err != nil {
 			return err
