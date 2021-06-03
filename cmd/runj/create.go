@@ -11,6 +11,7 @@ import (
 	"go.sbk.wtf/runj/oci"
 	"go.sbk.wtf/runj/runtimespec"
 	"go.sbk.wtf/runj/state"
+	"go.sbk.wtf/runj/pkg/gojail"
 
 	"github.com/spf13/cobra"
 )
@@ -129,14 +130,19 @@ the console's pseudoterminal`)
 		} else if *consoleSocket != "" {
 			return errors.New("console-socket provided but Process.Terminal is false")
 		}
-		var confPath string
-		confPath, err = jail.CreateConfig(id, rootPath)
+
+		jailconfig := make(map[string]interface{})
+		jailconfig["name"] = id
+		jailconfig["path"] = rootPath
+		jailconfig["persist"] = true
+
+		j, err := gojail.JailCreate(jailconfig)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed creating jail: %w", err)
 		}
-		if err := jail.CreateJail(cmd.Context(), confPath); err != nil {
-			return err
-		}
+		s.JID = int(j.ID())
+		s.Save()
+
 		err = jail.Mount(ociConfig)
 		if err != nil {
 			return err
