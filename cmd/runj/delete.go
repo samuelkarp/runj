@@ -49,7 +49,7 @@ func deleteCommand() *cobra.Command {
 			}
 			j, err := gojail.JailGetByID(gojail.JailID(s.JID))
 			if err != nil {
-				return fmt.Errorf("delete: failed to load get jail: %w", err)
+				return fmt.Errorf("delete: failed to get jail: %w", err)
 			}
 			j.Destroy()
 			var ociConfig *runtimespec.Spec
