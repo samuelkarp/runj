@@ -34,8 +34,8 @@ import (
 	"strconv"
 	"syscall"
 
-	"go.sbk.wtf/runj/state"
 	"go.sbk.wtf/runj/pkg/gojail"
+	"go.sbk.wtf/runj/state"
 
 	"github.com/containerd/console"
 	"golang.org/x/sys/unix"
@@ -165,4 +165,3 @@ func dupStdio(slavePath string) error {
 	}
 	return nil
 }
-

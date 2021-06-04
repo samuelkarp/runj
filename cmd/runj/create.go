@@ -9,9 +9,9 @@ import (
 
 	"go.sbk.wtf/runj/jail"
 	"go.sbk.wtf/runj/oci"
+	"go.sbk.wtf/runj/pkg/gojail"
 	"go.sbk.wtf/runj/runtimespec"
 	"go.sbk.wtf/runj/state"
-	"go.sbk.wtf/runj/pkg/gojail"
 
 	"github.com/spf13/cobra"
 )
