@@ -28,6 +28,13 @@ test:
 lint:
 	GOOS=freebsd golangci-lint run
 
+bin/integration: $(SOURCES) go.mod go.sum
+	go test -c ./test/integration -o ./bin/integration -tags integration
+
+.PHONY: integ-test
+integ-test: bin/integration
+	sudo bin/integration -test.v
+
 .PHONY: clean
 clean:
 	rm -rf bin
