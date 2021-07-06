@@ -143,20 +143,61 @@ type Mount struct {
 // Modification by Cyril Zhang
 // FreeBSD contains platform-specific configuration for FreeBSD based containers.
 type FreeBSD struct {
-	// RacctLimits specifies racct rules to apply to this jail.
-	RacctLimits []RacctLimit `json:"racct,omitempty"`
+	// Resources is resource limits for FreeBSD.
+	Resources *FreeBSDResources `json:"resources,omitempty"`
 }
 
-// RacctLimit is a racct rule to apply to a jail.
-type RacctLimit struct {
-	// Resource is the resource to set a limit on.
-	Resource string `json:"resource"`
-	// Action is what will happen if a process exceeds the allowed amount.
-	Action string `json:"action"`
-	// Amount is the allowed amount of the resource.
-	Amount string `json:"amount"`
-	// Per defines the entity that the amount applies to.
-	Per string `json:"per,omitempty"`
+// FreeBSDResources contains a set of resource limits for FreeBSD.
+type FreeBSDResources struct {
+	// Memory is the memory restriction configuration.
+	Memory *FreeBSDMemory `json:"memory,omitempty"`
+	// FSIO is the filesystem IO restriction configuration.
+	FSIO *FreeBSDFSIO `json:"fsIO,omitempty"`
+	// Shm is the shared memory restriction configuration.
+	Shm *FreeBSDShm `json:"shm,omitempty"`
+	// CPU is the CPU restriction configuration.
+	CPU *FreeBSDCPU `json:"cpu,omitempty"`
+	// Process is the process restriction configuration.
+	Process *FreeBSDProcess `json:"process,omitempty"`
+}
+
+type FreeBSDMemory struct {
+	// Limit is the memory limit (in bytes).
+	Limit *uint64 `json:"limit,omitempty"`
+	// Warning is the amount of memory (in bytes) where a warning is sent to devd(8).
+	Warning *uint64 `json:"warning,omitempty"`
+	// Swap is the amount of swap that may be used (in bytes).
+	Swap *uint64 `json:"swap,omitempty"`
+	// SwapWarning is the amount of swap (in bytes) where a warning is sent to devd(8).
+	SwapWarning *uint64 `json:"swapWarning,omitempty"`
+}
+
+type FreeBSDFSIO struct {
+	// ReadBPS is the rate of filesystem reads (in bytes per second) before throttling occurs.
+	ReadBPS *uint64 `json:"readbps,omitempty"`
+	// WriteBPS is the rate of filesystem writes (in bytes per second) before throttling occurs.
+	WriteBPS *uint64 `json:"writebps,omitempty"`
+	// ReadIOPS is the rate of filesystem read (in operations per second) before throttling occurs.
+	ReadIOPS *uint64 `json:"readiops,omitempty"`
+	// WriteBPS is the rate of filesystem writes (in operations per second) before throttling occurs.
+	WriteIOPS *uint64 `json:"writeiops,omitempty"`
+}
+
+type FreeBSDShm struct {
+	// Count is the limit of shared memory object count.
+	Count *uint64 `json:"count,omitempty"`
+	// Size is the limit of total shared memory object size (in bytes).
+	Size *uint64 `json:"size,omitempty"`
+}
+
+type FreeBSDCPU struct {
+	// Limit is limit of CPU usage (in percent of a single CPU).
+	Limit *uint64 `json:"limit,omitempty"`
+}
+
+type FreeBSDProcess struct {
+	// Limit is the limit of process count.
+	Limit *uint64 `json:"limit,omitempty"`
 }
 // End of modification
 
