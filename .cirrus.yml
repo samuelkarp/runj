@@ -13,3 +13,6 @@ task:
   test_script:
     - make test
     - make lint
+  integ_script:
+    - sudo make install
+    - make integ-test
