@@ -59,6 +59,10 @@ func deleteCommand() *cobra.Command {
 			if ociConfig == nil {
 				return errors.New("OCI config is required")
 			}
+			err = jail.Unlimit(id, ociConfig)
+			if err != nil {
+				return err
+			}
 			err = jail.Unmount(ociConfig)
 			if err != nil {
 				return err
