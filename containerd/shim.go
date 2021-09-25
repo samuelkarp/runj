@@ -844,5 +844,10 @@ func (s *service) Stats(ctx context.Context, req *task.StatsRequest) (*task.Stat
 
 func (s *service) Connect(ctx context.Context, req *task.ConnectRequest) (*task.ConnectResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("CONNECT")
-	return nil, errdefs.ErrNotImplemented
+	primaryPid := s.primary.GetPID()
+
+	return &taskAPI.ConnectResponse{
+		ShimPid: uint32(os.Getpid()),
+		TaskPid: uint32(primaryPid),
+	}, nil
 }
