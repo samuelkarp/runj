@@ -84,9 +84,10 @@ experimental shim that can be used with containerd.  The shim is available as
 `containerd-shim-runj-v1` and can be used from the `ctr` command-line tool by
 specifying `--runtime wtf.sbk.runj.v1`.
 
-A bleeding-edge build of containerd is currently required as not all the
-necessary patches for FreeBSD support are available in a release.  You can find
-the necessary commits in the
+containerd 1.5 or later is required as earlier versions do not have all the
+necessary patches for FreeBSD support.  Additional functionality may be
+available in a development build of containerd.  If you prefer to build from
+source, you can find the latest commits in the
 [`main` branch of containerd](https://github.com/containerd/containerd/tree/main).
 
 #### OCI Image
