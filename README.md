@@ -87,7 +87,7 @@ specifying `--runtime wtf.sbk.runj.v1`.
 A bleeding-edge build of containerd is currently required as not all the
 necessary patches for FreeBSD support are available in a release.  You can find
 the necessary commits in the
-[`master` branch of containerd](https://github.com/containerd/containerd/tree/master).
+[`main` branch of containerd](https://github.com/containerd/containerd/tree/main).
 
 #### OCI Image
 
