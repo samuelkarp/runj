@@ -31,8 +31,11 @@ lint:
 bin/integration: $(SOURCES) go.mod go.sum
 	go test -c ./test/integration -o ./bin/integration -tags integration
 
+bin/integ-inside: $(SOURCES) go.mod go.sum
+	CGO_ENABLED=0 go test -c ./test/integration -o ./bin/integ-inside -tags inside
+
 .PHONY: integ-test
-integ-test: bin/integration
+integ-test: bin/integration bin/integ-inside
 	sudo bin/integration -test.v
 
 .PHONY: clean
