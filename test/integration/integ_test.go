@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -108,7 +109,7 @@ func TestJailHello(t *testing.T) {
 		},
 		Root: &runtimespec.Root{Path: root},
 	}
-	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 2*time.Second)
+	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	t.Log("STDOUT:", string(stdout))
 	t.Log("STDERR:", string(stderr))
@@ -131,6 +132,35 @@ func copyFile(source, dest string) error {
 	defer out.Close()
 	_, err = io.Copy(out, in)
 	return err
+}
+
+func TestJailEnv(t *testing.T) {
+	env := []string{"Hello=World", "FOO=bar"}
+
+	root, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
+	require.NoError(t, err, "create root")
+	defer os.RemoveAll(root)
+
+	err = copyFile("bin/integ-inside", filepath.Join(root, "integ-inside"))
+	require.NoError(t, err, "copy inside binary")
+
+	spec := runtimespec.Spec{
+		Process: &runtimespec.Process{
+			Args: []string{"/integ-inside", "-test.run", "TestEnv"},
+			Env:  env,
+		},
+		Root: &runtimespec.Root{Path: root},
+	}
+	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
+	assert.NoError(t, err)
+	assert.True(t, len(stdout) > 1, "stdout should have at least two lines")
+	assert.Equal(t, []byte{}, stderr, "stderr should be empty")
+	lines := strings.Split(string(stdout), "\n")
+	assert.Equal(t, "PASS", lines[len(lines)-2], "second to last line of output should be PASS")
+	assert.ElementsMatch(t, env, lines[:len(lines)-2], "environment variables should match")
+	if t.Failed() {
+		t.Log("STDOUT:", string(stdout))
+	}
 }
 
 // runSimpleExitingJail is a helper that takes a spec as input, sets up a bundle
@@ -204,7 +234,9 @@ func runSimpleExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait t
 		if cleanupErr != nil && err == nil {
 			err = fmt.Errorf("runj delete: %w", cleanupErr)
 		}
-		t.Log("runj delete output:", string(outBytes))
+		if len(outBytes) > 0 {
+			t.Log("runj delete output:", string(outBytes))
+		}
 	}()
 
 	// runj start

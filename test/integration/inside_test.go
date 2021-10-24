@@ -4,12 +4,17 @@ package integration
 
 import (
 	"fmt"
+	"os"
 	"testing"
-	"time"
 )
 
 func TestHello(t *testing.T) {
 	fmt.Println("Hello println!")
-	time.Sleep(time.Second)
 	t.Log("Hello t.Log!")
+}
+
+func TestEnv(t *testing.T) {
+	for _, env := range os.Environ() {
+		fmt.Println(env)
+	}
 }
