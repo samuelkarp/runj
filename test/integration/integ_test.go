@@ -96,23 +96,50 @@ func TestCreateDelete(t *testing.T) {
 }
 
 func TestJailHello(t *testing.T) {
-	root, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
-	require.NoError(t, err, "create root")
-	defer os.RemoveAll(root)
+	spec, cleanup := setupSimpleExitingJail(t)
+	defer cleanup()
 
-	err = copyFile("bin/integ-inside", filepath.Join(root, "integ-inside"))
-	require.NoError(t, err, "copy inside binary")
-
-	spec := runtimespec.Spec{
-		Process: &runtimespec.Process{
-			Args: []string{"/integ-inside", "-test.v", "-test.run", "TestHello"},
-		},
-		Root: &runtimespec.Root{Path: root},
+	spec.Process = &runtimespec.Process{
+		Args: []string{"/integ-inside", "-test.v", "-test.run", "TestHello"},
 	}
+
 	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	t.Log("STDOUT:", string(stdout))
 	t.Log("STDERR:", string(stderr))
+}
+
+func TestJailEnv(t *testing.T) {
+	env := []string{"Hello=World", "FOO=bar"}
+
+	spec, cleanup := setupSimpleExitingJail(t)
+	defer cleanup()
+
+	spec.Process = &runtimespec.Process{
+		Args: []string{"/integ-inside", "-test.run", "TestEnv"},
+		Env:  env,
+	}
+
+	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
+	assert.NoError(t, err)
+	assertJailPass(t, stdout, stderr)
+	lines := strings.Split(string(stdout), "\n")
+	assert.ElementsMatch(t, env, lines[:len(lines)-2], "environment variables should match")
+	if t.Failed() {
+		t.Log("STDOUT:", string(stdout))
+	}
+}
+
+func setupSimpleExitingJail(t *testing.T) (runtimespec.Spec, func()) {
+	root, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
+	require.NoError(t, err, "create root")
+
+	err = copyFile("bin/integ-inside", filepath.Join(root, "integ-inside"))
+	require.NoError(t, err, "copy inside binary")
+
+	return runtimespec.Spec{
+		Root: &runtimespec.Root{Path: root},
+	}, func() { os.RemoveAll(root) }
 }
 
 func copyFile(source, dest string) error {
@@ -134,33 +161,12 @@ func copyFile(source, dest string) error {
 	return err
 }
 
-func TestJailEnv(t *testing.T) {
-	env := []string{"Hello=World", "FOO=bar"}
-
-	root, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
-	require.NoError(t, err, "create root")
-	defer os.RemoveAll(root)
-
-	err = copyFile("bin/integ-inside", filepath.Join(root, "integ-inside"))
-	require.NoError(t, err, "copy inside binary")
-
-	spec := runtimespec.Spec{
-		Process: &runtimespec.Process{
-			Args: []string{"/integ-inside", "-test.run", "TestEnv"},
-			Env:  env,
-		},
-		Root: &runtimespec.Root{Path: root},
-	}
-	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
-	assert.NoError(t, err)
+func assertJailPass(t *testing.T, stdout, stderr []byte) {
+	t.Helper()
 	assert.True(t, len(stdout) > 1, "stdout should have at least two lines")
 	assert.Equal(t, []byte{}, stderr, "stderr should be empty")
 	lines := strings.Split(string(stdout), "\n")
 	assert.Equal(t, "PASS", lines[len(lines)-2], "second to last line of output should be PASS")
-	assert.ElementsMatch(t, env, lines[:len(lines)-2], "environment variables should match")
-	if t.Failed() {
-		t.Log("STDOUT:", string(stdout))
-	}
 }
 
 // runSimpleExitingJail is a helper that takes a spec as input, sets up a bundle
