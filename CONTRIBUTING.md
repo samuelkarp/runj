@@ -26,11 +26,13 @@ these guidelines:
   please **create an issue describing your change first**.  I want to learn
   about the problem that you'd like to address and how you'd like to do it
   first.
-* Make sure the **unit tests pass** and **no new lint warnings** are introduced.
+* Make sure the **tests pass** and **no new lint warnings** are introduced.
   Unit tests are written using Go's standard testing framework and can be run
-  with `make test` (or `go test` if you're familiar with the Go tool).  For
-  linting, runj uses `golangci-lint` (available in ports) which can be run with
-  `make lint`.
+  with `make test` (or `go test` if you're familiar with the Go tool).
+  Integration tests consist of two Go binaries that cooperate inside and
+  outside the jails and can be run using `make integ-test`.  For linting,
+  runj uses `golangci-lint` (available in ports) which can be run with `make
+  lint`.
 * If possible and practical, please add new unit tests covering your changes.
 * Git commit messages should contain a short summary of no more than 50
   characters in the first line and a longer description (when appropriate)
