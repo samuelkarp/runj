@@ -130,6 +130,36 @@ func TestJailEnv(t *testing.T) {
 	}
 }
 
+func TestJailNullMount(t *testing.T) {
+	spec, cleanup := setupSimpleExitingJail(t)
+	defer cleanup()
+
+	volume, err := ioutil.TempDir("", "runj-integ-test-volume-"+t.Name())
+	require.NoError(t, err, "create volume")
+	defer os.RemoveAll(volume)
+
+	err = ioutil.WriteFile(filepath.Join(volume, "hello.txt"), []byte("input file"), 0644)
+	require.NoError(t, err, "input file")
+
+	spec.Process = &runtimespec.Process{
+		Args: []string{"/integ-inside", "-test.run", "TestNullMount"},
+	}
+	spec.Mounts = []runtimespec.Mount{{
+		Destination: "/volume",
+		Type:        "nullfs",
+		Source:      volume,
+	}}
+	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
+	assert.NoError(t, err)
+	assertJailPass(t, stdout, stderr)
+	output, err := ioutil.ReadFile(filepath.Join(volume, "world.txt"))
+	assert.NoError(t, err, "failed to read world.txt")
+	assert.Equal(t, "output file", string(output))
+	if t.Failed() {
+		t.Log("STDOUT:", string(stdout))
+	}
+}
+
 func setupSimpleExitingJail(t *testing.T) (runtimespec.Spec, func()) {
 	root, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
 	require.NoError(t, err, "create root")
