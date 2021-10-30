@@ -141,11 +141,11 @@ Hello from the container!
 
 ## Implementation details
 
-runj uses FreeBSD's userland utilities for managing jails; it does not directly
-invoke the jail-related syscalls.  You must have working versions of `jail(8)`,
-`jls(8)`, `jexec(8)`, and `ps(1)` installed on your system.  `runj kill` makes
-use of the `kill(1)` command inside the jail's rootfs; if this command does not
-exist (or is not functional), `runj kill` will not work.
+runj uses both FreeBSD's userland utilities for managing jails and jail-related
+syscalls.  You must have working versions of `jail(8)`, `jls(8)`, `jexec(8)`,
+and `ps(1)` installed on your system.  `runj kill` makes use of the `kill(1)`
+command inside the jail's rootfs; if this command does not  exist (or is not
+functional), `runj kill` will not work.
 
 ## Contributing
 

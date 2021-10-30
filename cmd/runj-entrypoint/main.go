@@ -30,8 +30,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"syscall"
+
+	"go.sbk.wtf/runj/jail"
 
 	"github.com/containerd/console"
 	"golang.org/x/sys/unix"
@@ -48,7 +51,6 @@ func main() {
 var errUsage = errors.New("usage: runj-entrypoint JAIL-ID FIFO-PATH PROGRAM [ARGS...]")
 
 const (
-	jexecPath        = "/usr/sbin/jexec"
 	consoleSocketEnv = "__RUNJ_CONSOLE_SOCKET"
 
 	// skipExecFifo signals that the exec fifo sync procedure should be skipped
@@ -61,7 +63,8 @@ func _main() (int, error) {
 	}
 	jid := os.Args[1]
 	fifoPath := os.Args[2]
-	argv := os.Args[3:]
+	command := os.Args[3]
+	argv := os.Args[4:]
 
 	if err := setupConsole(); err != nil {
 		return 2, err
@@ -78,9 +81,31 @@ func _main() (int, error) {
 		}
 	}
 
-	// call unix.Exec (which is execve(2)) to replace this process with the jexec
-	if err := unix.Exec(jexecPath, append([]string{"jexec", jid}, argv...), unix.Environ()); err != nil {
-		return 6, fmt.Errorf("failed to exec: %w", err)
+	j, err := jail.FromName(jid)
+	if err != nil {
+		return 5, err
+	}
+
+	// attach places us inside the jail and implicitly does a chroot
+	err = j.Attach()
+	if err != nil {
+		return 6, err
+	}
+
+	// change to the jail's root
+	err = os.Chdir("/")
+	if err != nil {
+		return 7, err
+	}
+
+	// unix.Exec requires the full path to the supplied command
+	cmdpath, err := exec.LookPath(command)
+	if err != nil {
+		return 8, err
+	}
+	// call unix.Exec (which is execve(2)) to replace this process with the command
+	if err := unix.Exec(cmdpath, append([]string{command}, argv...), unix.Environ()); err != nil {
+		return 9, fmt.Errorf("failed to exec: %w", err)
 	}
 	return 0, nil
 }
