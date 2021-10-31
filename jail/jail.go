@@ -1,5 +1,6 @@
 package jail
 
+// Jail represents an existing jail
 type Jail interface {
 	// Attach attaches the current running process to the jail
 	Attach() error
