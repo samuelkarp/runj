@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/cheggaaa/pb/v3 v3.0.5
 	github.com/containerd/console v1.0.3-0.20210412134321-2298a9c8aead
-	github.com/containerd/containerd v1.5.8
+	github.com/containerd/containerd v1.5.10
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/go-runc v1.0.0
 	github.com/containerd/typeurl v1.0.2
