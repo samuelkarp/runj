@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 
 	"go.sbk.wtf/runj/jail"
 	"go.sbk.wtf/runj/oci"
@@ -45,8 +46,14 @@ import (
 // integrations on top of runc expect this behavior, runj copies that at the
 // expense of more complication in the codebase.
 func createCommand() *cobra.Command {
+	var (
+		bundle        string
+		consoleSocket string
+		pidFile       string
+	)
+
 	create := &cobra.Command{
-		Use:   "create <container-id> <path-to-bundle>",
+		Use:   "create <container-id> [<path-to-bundle]",
 		Short: "Create a new container with given ID and bundle",
 		Long: `Create a new container with given ID and bundle.  IDs must be unique.
 
@@ -57,9 +64,11 @@ filesystem.
 The specification file includes an args parameter. The args parameter is used
 to specify command(s) that get run when the container is started. To change the
 command(s) that get executed on start, edit the args parameter of the spec.`,
-		Args: cobra.ExactArgs(2),
+		Args: cobra.RangeArgs(1, 2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			bundle := args[1]
+			if len(args) == 2 {
+				bundle = args[1]
+			}
 			bundleConfig := filepath.Join(bundle, oci.ConfigFileName)
 			fInfo, err := os.Stat(bundleConfig)
 			if err != nil {
@@ -71,16 +80,27 @@ command(s) that get executed on start, edit the args parameter of the spec.`,
 			return nil
 		},
 	}
-	consoleSocket := create.Flags().String(
+	flags := create.Flags()
+	flags.StringVar(
+		&bundle,
+		"bundle",
+		"",
+		`path to the root of the bundle directory, defaults to the current directory`)
+	flags.StringVar(
+		&consoleSocket,
 		"console-socket",
 		"",
 		`path to an AF_UNIX socket which will receive a
 file descriptor referencing the master end of
 the console's pseudoterminal`)
+	flags.StringVar(
+		&pidFile,
+		"pid-file",
+		"",
+		"the file to write the process id to")
 	create.RunE = func(cmd *cobra.Command, args []string) (err error) {
 		disableUsage(cmd)
 		id := args[0]
-		bundle := args[1]
 		var s *state.State
 		s, err = state.Create(id, bundle)
 		if err != nil {
@@ -121,15 +141,15 @@ the console's pseudoterminal`)
 		}
 		// console socket validation
 		if ociConfig.Process.Terminal {
-			if *consoleSocket == "" {
+			if consoleSocket == "" {
 				return errors.New("console-socket is required when Process.Terminal is true")
 			}
-			if socketStat, err := os.Stat(*consoleSocket); err != nil {
-				return fmt.Errorf("failed to stat console socket %q: %w", *consoleSocket, err)
+			if socketStat, err := os.Stat(consoleSocket); err != nil {
+				return fmt.Errorf("failed to stat console socket %q: %w", consoleSocket, err)
 			} else if socketStat.Mode()&os.ModeSocket != os.ModeSocket {
-				return fmt.Errorf("console-socket %q is not a socket", *consoleSocket)
+				return fmt.Errorf("console-socket %q is not a socket", consoleSocket)
 			}
-		} else if *consoleSocket != "" {
+		} else if consoleSocket != "" {
 			return errors.New("console-socket provided but Process.Terminal is false")
 		}
 		var confPath string
@@ -154,13 +174,26 @@ the console's pseudoterminal`)
 		// Setup and start the "runj-entrypoint" helper program in order to
 		// get the container STDIO hooked up properly.
 		var entrypoint *exec.Cmd
-		entrypoint, err = jail.SetupEntrypoint(id, true, ociConfig.Process.Args, ociConfig.Process.Env, *consoleSocket)
+		entrypoint, err = jail.SetupEntrypoint(id, true, ociConfig.Process.Args, ociConfig.Process.Env, consoleSocket)
 		if err != nil {
 			return err
 		}
 		// the runj-entrypoint pid will become the container process's pid
 		// through a series of exec(2) calls
 		s.PID = entrypoint.Process.Pid
+		if pidFile != "" {
+			f, err := os.OpenFile(pidFile, os.O_RDWR|os.O_CREATE, 0o666)
+			if err != nil {
+				return err
+			}
+			pidValue := strconv.Itoa(s.PID)
+			_, err = f.WriteString(pidValue)
+			f.Close()
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	}
 	return create
