@@ -5,7 +5,7 @@ task:
   go_modules_cache:
     folder: .gomodcache
   setup_script:
-    - pkg install -y go golangci-lint
+    - pkg install -y git-lite go golangci-lint
     - go env -w GOMODCACHE=$(pwd)/.gomodcache
     - go mod download
   build_script:
