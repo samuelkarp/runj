@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package integration
@@ -72,7 +73,20 @@ func TestCreateDelete(t *testing.T) {
 			require.NoError(t, err, "write config")
 
 			id := "test-create-delete-" + strconv.Itoa(i)
-			cmd := exec.Command("runj", "create", id, bundleDir)
+			var cmd *exec.Cmd
+			switch i % 3 {
+			case 0:
+				cmd = exec.Command("runj", "create", id, bundleDir, "--pid-file", "jail.pid")
+				t.Log("using argument form")
+			case 1:
+				cmd = exec.Command("runj", "create", id, "--bundle", bundleDir, "--pid-file", "jail.pid")
+				t.Log("using --bundle form")
+			case 2:
+				cmd = exec.Command("runj", "create", id, "-b", bundleDir, "--pid-file", "jail.pid")
+				t.Log("using -b form")
+			default:
+				t.Fatalf("Unhandled test variant; %d%%3 = %d", i, i%3)
+			}
 			cmd.Stdin = nil
 			out, err := os.OpenFile(filepath.Join(bundleDir, "out"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 			require.NoError(t, err, "out file")
@@ -85,6 +99,10 @@ func TestCreateDelete(t *testing.T) {
 			outBytes, err := ioutil.ReadFile(filepath.Join(bundleDir, "out"))
 			assert.NoError(t, err, "out file read")
 			t.Log("runj create output:", string(outBytes))
+
+			pidfile, err := os.ReadFile("jail.pid")
+			assert.NoError(t, err)
+			t.Logf("pid: %q", string(pidfile))
 
 			cmd = exec.Command("runj", "delete", id)
 			cmd.Stdin = nil
