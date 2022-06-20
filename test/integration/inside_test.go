@@ -1,3 +1,4 @@
+//go:build inside
 // +build inside
 
 package integration
@@ -32,4 +33,10 @@ func TestNullMount(t *testing.T) {
 	assert.Equal(t, "input file", string(input), "unexpected file contents")
 	err = ioutil.WriteFile("/volume/world.txt", []byte("output file"), 0644)
 	assert.NoError(t, err, "cannot write world.txt")
+}
+
+func TestHostname(t *testing.T) {
+	hostname, err := os.Hostname()
+	assert.NoError(t, err, "failed to retrieve hostname")
+	fmt.Println(hostname)
 }

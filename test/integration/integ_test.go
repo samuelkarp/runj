@@ -50,6 +50,11 @@ func TestCreateDelete(t *testing.T) {
 				Env: []string{"one=two", "three=four", "five"},
 			},
 		},
+		// hostname
+		{
+			Hostname: "foo.bar.example.com",
+			Process:  &runtimespec.Process{},
+		},
 	}
 
 	for i, tc := range tests {
@@ -138,7 +143,7 @@ func TestJailEnv(t *testing.T) {
 		Env:  env,
 	}
 
-	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
+	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-env", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	assertJailPass(t, stdout, stderr)
 	lines := strings.Split(string(stdout), "\n")
@@ -167,12 +172,34 @@ func TestJailNullMount(t *testing.T) {
 		Type:        "nullfs",
 		Source:      volume,
 	}}
-	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
+	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-null", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	assertJailPass(t, stdout, stderr)
 	output, err := ioutil.ReadFile(filepath.Join(volume, "world.txt"))
 	assert.NoError(t, err, "failed to read world.txt")
 	assert.Equal(t, "output file", string(output))
+	if t.Failed() {
+		t.Log("STDOUT:", string(stdout))
+	}
+}
+
+func TestJailHostname(t *testing.T) {
+	hostname := fmt.Sprintf("%s.example", t.Name())
+
+	spec, cleanup := setupSimpleExitingJail(t)
+	defer cleanup()
+
+	spec.Hostname = hostname
+	spec.Process = &runtimespec.Process{
+		Args: []string{"/integ-inside", "-test.run", "TestHostname"},
+	}
+
+	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hostname", spec, 500*time.Millisecond)
+	assert.NoError(t, err)
+	assertJailPass(t, stdout, stderr)
+	lines := strings.Split(string(stdout), "\n")
+	assert.Len(t, lines, 3, "should be exactly 3 lines of output")
+	assert.Equal(t, hostname, lines[0], "hostname should match")
 	if t.Failed() {
 		t.Log("STDOUT:", string(stdout))
 	}
