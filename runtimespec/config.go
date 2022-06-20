@@ -30,11 +30,9 @@ type Spec struct {
 	// Root configures the container's root filesystem.
 	Root *Root `json:"root,omitempty"`
 
-	// Modification by Samuel Karp
-	/*
-		// Hostname configures the container's hostname.
-		Hostname string `json:"hostname,omitempty"`
-	*/
+	// Hostname configures the container's hostname.
+	Hostname string `json:"hostname,omitempty"`
+
 	// Mounts configures additional mounts (on top of Root).
 	Mounts []Mount `json:"mounts,omitempty"`
 	/*

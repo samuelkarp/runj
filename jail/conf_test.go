@@ -1,20 +1,40 @@
 package jail
 
 import (
+	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRenderConfigBasic(t *testing.T) {
-	const (
-		id   = "basic"
-		path = "/tmp/test/basic/root"
-	)
-	expected, err := ioutil.ReadFile("testdata/basic.conf")
-	assert.NoError(t, err, "test data")
-	actual, err := renderConfig(&Config{Name: id, Root: path})
-	assert.NoError(t, err, "render")
-	assert.Equal(t, string(expected), actual)
+func TestRenderConfigGolden(t *testing.T) {
+	tests := []struct {
+		// name is both used as the subtest name and is the name of the golden data file in testdata
+		name   string
+		config Config
+	}{{
+		"basic",
+		Config{
+			Name: "basic",
+			Root: "/tmp/test/basic/root",
+		},
+	}, {
+		"hostname",
+		Config{
+			Name:     "hostname",
+			Root:     "/tmp/test/hostname/root",
+			Hostname: "test.hostname.example.com",
+		},
+	}}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			expected, err := ioutil.ReadFile(filepath.Join("testdata", fmt.Sprintf("%s.conf", tc.name)))
+			assert.NoError(t, err, "test data")
+			actual, err := renderConfig(&tc.config)
+			assert.NoError(t, err, "render")
+			assert.Equal(t, string(expected), actual)
+		})
+	}
 }

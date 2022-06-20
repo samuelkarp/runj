@@ -27,6 +27,7 @@ runj currently supports the following parts of the OCI runtime spec:
   - Process args
   - Process environment
   - Process terminal
+  - Hostname
   - Mounts
 
 ## Getting started

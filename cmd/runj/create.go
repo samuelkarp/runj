@@ -162,8 +162,9 @@ written`)
 		}
 		var confPath string
 		confPath, err = jail.CreateConfig(&jail.Config{
-			Name: id,
-			Root: rootPath,
+			Name:     id,
+			Root:     rootPath,
+			Hostname: ociConfig.Hostname,
 		})
 		if err != nil {
 			return err

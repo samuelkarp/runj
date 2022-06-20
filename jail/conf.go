@@ -14,6 +14,9 @@ const (
 	confName       = "jail.conf"
 	configTemplate = `{{ .Name }} {
   path = "{{ .Root }}";
+{{- if ne .Hostname "" }}
+  host.hostname = "{{.Hostname}}";
+{{- end }}
   persist;
 }
 `
