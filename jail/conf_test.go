@@ -14,7 +14,7 @@ func TestRenderConfigBasic(t *testing.T) {
 	)
 	expected, err := ioutil.ReadFile("testdata/basic.conf")
 	assert.NoError(t, err, "test data")
-	actual, err := renderConfig(id, path)
+	actual, err := renderConfig(&Config{Name: id, Root: path})
 	assert.NoError(t, err, "render")
 	assert.Equal(t, string(expected), actual)
 }

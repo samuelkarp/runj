@@ -19,13 +19,20 @@ const (
 `
 )
 
+// Config is a limited subset of the parameters available in jail.conf(5) for use with jail(8).
+type Config struct {
+	Name     string
+	Root     string
+	Hostname string
+}
+
 // CreateConfig creates a config file for the jail(8) command
-func CreateConfig(id, root string) (string, error) {
-	config, err := renderConfig(id, root)
+func CreateConfig(config *Config) (string, error) {
+	cfg, err := renderConfig(config)
 	if err != nil {
 		return "", err
 	}
-	confPath := ConfPath(id)
+	confPath := ConfPath(config.Name)
 	confFile, err := os.OpenFile(confPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 	if err != nil {
 		return "", fmt.Errorf("jail: config should not already exist: %w", err)
@@ -36,7 +43,7 @@ func CreateConfig(id, root string) (string, error) {
 			os.Remove(confFile.Name())
 		}
 	}()
-	_, err = confFile.Write([]byte(config))
+	_, err = confFile.Write([]byte(cfg))
 	if err != nil {
 		return "", err
 	}
@@ -48,18 +55,12 @@ func ConfPath(id string) string {
 	return filepath.Join(state.Dir(id), confName)
 }
 
-func renderConfig(id, root string) (string, error) {
-	config, err := template.New("config").Parse(configTemplate)
+func renderConfig(config *Config) (string, error) {
+	cfg, err := template.New("config").Parse(configTemplate)
 	if err != nil {
 		return "", err
 	}
 	buf := bytes.Buffer{}
-	config.Execute(&buf, struct {
-		Name string
-		Root string
-	}{
-		Name: id,
-		Root: root,
-	})
+	cfg.Execute(&buf, config)
 	return buf.String(), nil
 }

@@ -161,7 +161,10 @@ written`)
 			return errors.New("console-socket provided but Process.Terminal is false")
 		}
 		var confPath string
-		confPath, err = jail.CreateConfig(id, rootPath)
+		confPath, err = jail.CreateConfig(&jail.Config{
+			Name: id,
+			Root: rootPath,
+		})
 		if err != nil {
 			return err
 		}
