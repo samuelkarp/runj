@@ -3,6 +3,7 @@ module go.sbk.wtf/runj
 go 1.14
 
 require (
+	github.com/bxcodec/faker v2.0.1+incompatible // indirect
 	github.com/cheggaaa/pb/v3 v3.0.5
 	github.com/containerd/console v1.0.3-0.20210412134321-2298a9c8aead
 	github.com/containerd/containerd v1.5.13
