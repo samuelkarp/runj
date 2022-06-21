@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"go.sbk.wtf/runj/state"
@@ -17,6 +18,12 @@ const (
 {{- if ne .Hostname "" }}
   host.hostname = "{{.Hostname}}";
 {{- end }}
+{{- if ne .IP4 "" }}
+  ip4 = "{{.IP4}}";
+{{- end }}
+{{- if gt (len .IP4Addr) 0 }}
+  ip4.addr = {{ join .IP4Addr ", " }};
+{{- end }}
   persist;
 }
 `
@@ -27,6 +34,8 @@ type Config struct {
 	Name     string
 	Root     string
 	Hostname string
+	IP4      string
+	IP4Addr  []string
 }
 
 // CreateConfig creates a config file for the jail(8) command
@@ -59,7 +68,11 @@ func ConfPath(id string) string {
 }
 
 func renderConfig(config *Config) (string, error) {
-	cfg, err := template.New("config").Parse(configTemplate)
+	cfg, err := template.New("config").Funcs(map[string]interface{}{
+		"join": func(elems []string, sep string) string {
+			return strings.Join(elems, sep)
+		},
+	}).Parse(configTemplate)
 	if err != nil {
 		return "", err
 	}
