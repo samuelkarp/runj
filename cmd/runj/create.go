@@ -160,12 +160,19 @@ written`)
 		} else if consoleSocket != "" {
 			return errors.New("console-socket provided but Process.Terminal is false")
 		}
-		var confPath string
-		confPath, err = jail.CreateConfig(&jail.Config{
+
+		jailcfg := &jail.Config{
 			Name:     id,
 			Root:     rootPath,
 			Hostname: ociConfig.Hostname,
-		})
+		}
+		if ociConfig.FreeBSD != nil && ociConfig.FreeBSD.Network != nil && ociConfig.FreeBSD.Network.IPv4 != nil {
+			jailcfg.IP4 = string(ociConfig.FreeBSD.Network.IPv4.Mode)
+			jailcfg.IP4Addr = ociConfig.FreeBSD.Network.IPv4.Addr
+		}
+
+		var confPath string
+		confPath, err = jail.CreateConfig(jailcfg)
 		if err != nil {
 			return err
 		}

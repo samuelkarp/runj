@@ -35,12 +35,22 @@ type Spec struct {
 
 	// Mounts configures additional mounts (on top of Root).
 	Mounts []Mount `json:"mounts,omitempty"`
-	/*
-		// Hooks configures callbacks for container lifecycle events.
-		Hooks *Hooks `json:"hooks,omitempty" platform:"linux,solaris"`
-		// Annotations contains arbitrary metadata for the container.
-		Annotations map[string]string `json:"annotations,omitempty"`
 
+	// Modification by Samuel Karp
+	/*
+			// Hooks configures callbacks for container lifecycle events.
+			Hooks *Hooks `json:"hooks,omitempty" platform:"linux,solaris"`
+			// Annotations contains arbitrary metadata for the container.
+			Annotations map[string]string `json:"annotations,omitempty"`
+		// End of modification
+	*/
+
+	// Modification by Samuel Karp
+	FreeBSD *FreeBSD `json:"freebsd,omitempty"`
+	// End of modification
+
+	// Modification by Samuel Karp
+	/*
 		// Linux is platform-specific configuration for Linux based containers.
 		Linux *Linux `json:"linux,omitempty" platform:"linux"`
 		// Solaris is platform-specific configuration for Solaris based containers.
@@ -132,6 +142,43 @@ type Mount struct {
 	// Options are fstab style mount options.
 	Options []string `json:"options,omitempty"`
 }
+
+// Modification by Samuel Karp
+
+// FreeBSD specifies FreeBSD-specific configuration options
+type FreeBSD struct {
+	Network *FreeBSDNetwork `json:"network,omitempty"`
+}
+
+// FreeBSDNetwork specifies how the jail's network should be configured by the
+// kernel
+type FreeBSDNetwork struct {
+	IPv4 *FreeBSDIPv4 `json:"ipv4,omitempty"`
+}
+
+// FreeBSDIPv4 encapsulates IPv4-specific jail options
+type FreeBSDIPv4 struct {
+	// Mode specifies the IPv4 mode of the jail.  Possible values are "new",
+	// "inherit", and "disable".  Setting the Addr parameter implies a value of
+	// "new".
+	Mode FreeBSDIPv4Mode `json:"mode,omitempty"`
+	// Addr is a list of IPv4 addresses assigned ot the jail.  If this is set,
+	// the jail is restricted to using only these addresses.
+	Addr []string `json:"addr,omitempty"`
+}
+
+// FreeBSDIPv4Mode describes the mode of IPv4 in the jail.  Possible values are
+// "new", "inherit", and "disable".  Setting the IPv4 Addr parameter implies a
+// value of "new".
+type FreeBSDIPv4Mode string
+
+const (
+	FreeBSDIPv4ModeNew     FreeBSDIPv4Mode = "new"
+	FreeBSDIPv4ModeInherit                 = "inherit"
+	FreeBSDIPv4ModeDisable                 = "disable"
+)
+
+// End of modification
 
 // Modification by Samuel Karp
 /*
