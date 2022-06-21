@@ -1,0 +1,5 @@
+version = "2"
+generators = ["go", "go-ttrpc"]
+
+[includes]
+before = ["."]

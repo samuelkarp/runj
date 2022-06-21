@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package wtf.sbk.runj.v1;
+
+option go_package = "go.sbk.wtf/runj/containerd/runjopts;runjopts";
+
+message CreateOptions {
+  string ip4mode = 64;
+  repeated string ip4addr = 65;
+}

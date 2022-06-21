@@ -1,4 +1,5 @@
 SOURCES != find . -name '*.go'
+PROTOS != find . -name '*.proto'
 
 all: binaries
 
@@ -37,6 +38,16 @@ bin/integ-inside: $(SOURCES) go.mod go.sum
 .PHONY: integ-test
 integ-test: bin/integration bin/integ-inside
 	sudo bin/integration -test.v
+
+protos: .protos-stamp
+.protos-stamp: $(PROTOS)
+	@find . -path ./vendor -prune -false -o -name '*.pb.go' | xargs -r rm
+	go list ./... | grep -v vendor | xargs protobuild
+	go-fix-acronym -w -a '(Id|Io|Uuid|Os|Ip)$$' $(shell find . -path ./vendor -name '*.pb.go')
+	touch .protos-stamp
+
+.PHONY: clean-protos
+	rm .protos-stamp
 
 .PHONY: clean
 clean:

@@ -1,3 +1,5 @@
 /bin/
 /image.tar
 /rootfs.txz
+.*-stamp
+/.gomodcache

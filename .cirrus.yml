@@ -2,13 +2,14 @@ task:
   name: CI
   freebsd_instance:
     image_family: freebsd-13-0
-  go_modules_cache:
-    folder: .gomodcache
   setup_script:
-    - pkg install -y git-lite go golangci-lint
-    - go env -w GOMODCACHE=$(pwd)/.gomodcache
+    - pkg install -y git-lite go golangci-lint protobuf
     - go mod download
+    - ./script/install-dev-tools.sh
+    - ./script/setup-cirrus.sh
   build_script:
+    - make -C "$(go env GOPATH)/src/go.sbk.wtf/runj" protos
+    - git status --porcelain
     - make
   test_script:
     - make test
