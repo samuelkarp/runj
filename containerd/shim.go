@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -19,7 +20,6 @@ import (
 	tasktypes "github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/process"
 	"github.com/containerd/containerd/runtime"
@@ -31,6 +31,7 @@ import (
 	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
 	ptypes "github.com/gogo/protobuf/types"
+	"github.com/moby/sys/mount"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -338,7 +339,7 @@ func (s *service) delete(ctx context.Context, bundlePath string) (*task.DeleteRe
 		log.G(ctx).WithError(err).Error("failed to run runj delete")
 		return nil, err
 	}
-	if err := mount.UnmountAll(filepath.Join(bundlePath, "rootfs"), 0); err != nil {
+	if err := mount.RecursiveUnmount(filepath.Join(bundlePath, "rootfs")); err != nil {
 		log.G(ctx).WithError(err).Warn("failed to cleanup rootfs mount")
 	}
 	return &taskAPI.DeleteResponse{
@@ -405,20 +406,15 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	defer func() {
 		if err != nil {
 			log.G(ctx).WithField("rootfs", rootfs).WithError(err).Error("failed to create,unmounting rootfs")
-			if err2 := mount.UnmountAll(rootfs, 0); err2 != nil {
+			if err2 := mount.RecursiveUnmount(rootfs); err2 != nil {
 				log.G(ctx).WithError(err2).Warn("failed to cleanup rootfs mount")
 			}
 		}
 	}()
 	for _, rm := range mounts {
-		m := &mount.Mount{
-			Type:    rm.Type,
-			Source:  rm.Source,
-			Options: rm.Options,
-		}
-		log.G(ctx).WithField("mount", m).WithField("rootfs", rootfs).Warn("mount")
-		if err := m.Mount(rootfs); err != nil {
-			return nil, errors.Wrapf(err, "failed to mount rootfs component %v", m)
+		log.G(ctx).WithField("mount", rm).WithField("rootfs", rootfs).Warn("mount")
+		if err := mount.Mount(rm.Source, rootfs, rm.Type, strings.Join(rm.Options, ",")); err != nil {
+			return nil, errors.Wrapf(err, "failed to mount rootfs component %v", rm)
 		}
 	}
 
