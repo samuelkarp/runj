@@ -13,6 +13,12 @@ import (
 	"syscall"
 	"time"
 
+	"go.sbk.wtf/runj/oci"
+
+	"go.sbk.wtf/runj/runtimespec"
+
+	"go.sbk.wtf/runj/containerd/runjopts"
+
 	"go.sbk.wtf/runj/state"
 
 	"github.com/containerd/console"
@@ -385,6 +391,8 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	s.setBundlePath(req.Bundle)
 	err := filterIncompatibleLinuxMounts(req.Bundle)
 
+	err = renderFreeBSDExtension(req.Bundle, req.Options)
+
 	var mounts []process.Mount
 	for _, m := range req.Rootfs {
 		mounts = append(mounts, process.Mount{
@@ -457,6 +465,31 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	return &taskAPI.CreateTaskResponse{
 		Pid: uint32(ociState.PID),
 	}, nil
+}
+
+func renderFreeBSDExtension(bundle string, opts *types.Any) error {
+	options := &runjopts.CreateOptions{}
+	if opts != nil {
+		v, err := typeurl.UnmarshalAny(opts)
+		if err != nil {
+			return err
+		}
+		options = v.(*runjopts.CreateOptions)
+	}
+
+	ext := &runtimespec.FreeBSD{
+		Network: &runtimespec.FreeBSDNetwork{
+			IPv4: &runtimespec.FreeBSDIPv4{
+				Mode: runtimespec.FreeBSDIPv4Mode(options.Ip4Mode),
+				Addr: options.Ip4Addr,
+			},
+		},
+	}
+	extBytes, err := json.Marshal(ext)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(bundle, oci.RunjExtensionFileName), extBytes, 0644)
 }
 
 func (s *service) setBundlePath(bundlePath string) error {
