@@ -30,12 +30,23 @@ runj currently supports the following parts of the OCI runtime spec:
   - Hostname
   - Mounts
 
+runj also supports the following experimental FreeBSD-specific extensions to the
+OCI runtime spec:
+
+* Config
+  - IPv4 mode
+  - IPv4 addresses
+
 ## Getting started
 
 ### OCI bundle
 
 To run a jail with runj, you must prepare an OCI bundle.  Bundles consist of a
-root filesystem and a JSON-formatted configuration file.
+root filesystem and a JSON-formatted configuration file called `config.json`.
+
+Experimental FreeBSD-specific extensions may be added directly to the
+`config.json` if desired, or may optionally be added to a runj-specific file
+located in the bundle directory called `runj.ext.json`.
 
 #### Root filesystem
 
@@ -52,10 +63,11 @@ working root filesystem from the FreeBSD website.
 #### Config
 
 `runj` supports a limited number of configuration parameters for jails.
-The OCI runtime spec does not currently include support for FreeBSD.  As this
-proof-of-concept is developed, FreeBSD-related configuration parameters can be
-added to the upstream specification.  For now, the extensions are documented
-[here](docs/oci.md)
+The OCI runtime spec does not currently include support for FreeBSD, however
+runj adds experimental support for some FreeBSD capabilities.  In the spirit of
+"rough consensus and working code", runj serves as a testbed for future
+proposals to extend the specification.  For now, the extensions are documented
+[here](docs/oci.md).
 
 You can use `runj demo spec` to generate an example config file for your bundle.
 
@@ -134,10 +146,40 @@ can use the `ctr` command-line tool to run containers like this:
 $ sudo ctr run \
     --runtime wtf.sbk.runj.v1 \
     --rm \
-    public.ecr.aws/samuelkarp/freebsd:12.1-RELEASE \
+    public.ecr.aws/samuelkarp/freebsd:13.1-RELEASE \
     my-container \
     sh -c 'echo "Hello from the container!"'
 Hello from the container!
+```
+
+`ctr` can also be used to test the experimental FreeBSD-specific extensions by
+creating a `runj.ext.json` file as documented in [`oci.md`](docs/oci.md) and
+passing the path with `--runtime-config-path`.  For example, to run a container
+interactively with access to the host's IPv4 networking stack (similar to the
+`--net-host` networking mode on Linux):
+
+```
+$ cat <<EOF >runj.ext.json
+{"network":{"ipv4":{"mode":"inherit"}}}
+EOF
+$ sudo ctr run \
+    --runtime wtf.sbk.runj.v1 \
+    --rm \
+    --tty \
+    --runtime-config-path $(pwd)/runj.ext.json \
+    public.ecr.aws/samuelkarp/freebsd:13.1-RELEASE \
+    my-container \
+    sh
+```
+
+Note that `containerd` and `runj` will not automatically create an
+`/etc/resolv.conf` file inside your container.  If your container image does not
+include one, you may need to add one yourself for name resolution to function
+properly.  A very simple `/etc/resolv.conf` file using Google's public DNS
+resolver is as follows:
+
+```
+nameserver 8.8.8.8
 ```
 
 ## Implementation details

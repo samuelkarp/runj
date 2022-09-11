@@ -4,17 +4,21 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"go.sbk.wtf/runj/internal/util"
 
 	"go.sbk.wtf/runj/runtimespec"
 
@@ -23,7 +27,7 @@ import (
 )
 
 func TestCreateDelete(t *testing.T) {
-	dir, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
+	dir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name())
 	require.NoError(t, err)
 	defer func() {
 		if !t.Failed() {
@@ -74,7 +78,7 @@ func TestCreateDelete(t *testing.T) {
 
 			configJSON, err := json.Marshal(tc)
 			require.NoError(t, err, "marshal config")
-			err = ioutil.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
+			err = os.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
 			require.NoError(t, err, "write config")
 
 			id := "test-create-delete-" + strconv.Itoa(i)
@@ -101,7 +105,7 @@ func TestCreateDelete(t *testing.T) {
 			assert.NoError(t, err, "runj create")
 			err = out.Close()
 			assert.NoError(t, err, "out file close")
-			outBytes, err := ioutil.ReadFile(filepath.Join(bundleDir, "out"))
+			outBytes, err := os.ReadFile(filepath.Join(bundleDir, "out"))
 			assert.NoError(t, err, "out file read")
 			t.Log("runj create output:", string(outBytes))
 
@@ -119,8 +123,7 @@ func TestCreateDelete(t *testing.T) {
 }
 
 func TestJailHello(t *testing.T) {
-	spec, cleanup := setupSimpleExitingJail(t)
-	defer cleanup()
+	spec := setupSimpleExitingJail(t)
 
 	spec.Process = &runtimespec.Process{
 		Args: []string{"/integ-inside", "-test.v", "-test.run", "TestHello"},
@@ -135,8 +138,7 @@ func TestJailHello(t *testing.T) {
 func TestJailEnv(t *testing.T) {
 	env := []string{"Hello=World", "FOO=bar"}
 
-	spec, cleanup := setupSimpleExitingJail(t)
-	defer cleanup()
+	spec := setupSimpleExitingJail(t)
 
 	spec.Process = &runtimespec.Process{
 		Args: []string{"/integ-inside", "-test.run", "TestEnv"},
@@ -154,14 +156,10 @@ func TestJailEnv(t *testing.T) {
 }
 
 func TestJailNullMount(t *testing.T) {
-	spec, cleanup := setupSimpleExitingJail(t)
-	defer cleanup()
+	spec := setupSimpleExitingJail(t)
 
-	volume, err := ioutil.TempDir("", "runj-integ-test-volume-"+t.Name())
-	require.NoError(t, err, "create volume")
-	defer os.RemoveAll(volume)
-
-	err = ioutil.WriteFile(filepath.Join(volume, "hello.txt"), []byte("input file"), 0644)
+	volume := t.TempDir()
+	err := os.WriteFile(filepath.Join(volume, "hello.txt"), []byte("input file"), 0644)
 	require.NoError(t, err, "input file")
 
 	spec.Process = &runtimespec.Process{
@@ -175,7 +173,7 @@ func TestJailNullMount(t *testing.T) {
 	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-null", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	assertJailPass(t, stdout, stderr)
-	output, err := ioutil.ReadFile(filepath.Join(volume, "world.txt"))
+	output, err := os.ReadFile(filepath.Join(volume, "world.txt"))
 	assert.NoError(t, err, "failed to read world.txt")
 	assert.Equal(t, "output file", string(output))
 	if t.Failed() {
@@ -186,8 +184,7 @@ func TestJailNullMount(t *testing.T) {
 func TestJailHostname(t *testing.T) {
 	hostname := fmt.Sprintf("%s.example", t.Name())
 
-	spec, cleanup := setupSimpleExitingJail(t)
-	defer cleanup()
+	spec := setupSimpleExitingJail(t)
 
 	spec.Hostname = hostname
 	spec.Process = &runtimespec.Process{
@@ -205,35 +202,73 @@ func TestJailHostname(t *testing.T) {
 	}
 }
 
-func setupSimpleExitingJail(t *testing.T) (runtimespec.Spec, func()) {
-	root, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
-	require.NoError(t, err, "create root")
+func TestHostIPv4Network(t *testing.T) {
+	spec := setupSimpleExitingJail(t)
+	mux := http.NewServeMux()
+	var called int64
+	const response = "hi there!"
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&called, 1)
+		fmt.Fprint(w, response)
+	})
+	server := &http.Server{
+		Addr:    ":0",
+		Handler: mux,
+	}
+	listener, err := net.Listen("tcp", ":0")
+	require.NoError(t, err, "failed to bind to port")
+	t.Cleanup(func() { listener.Close() })
+	port := listener.Addr().(*net.TCPAddr).Port
+	t.Log("test server listening port:", port)
 
-	err = copyFile("bin/integ-inside", filepath.Join(root, "integ-inside"))
-	require.NoError(t, err, "copy inside binary")
+	go func() {
+		err = server.Serve(listener)
+		if err == http.ErrServerClosed {
+			return
+		}
+		require.NoError(t, err, "failed to set up test server")
+	}()
+	t.Cleanup(func() { server.Shutdown(context.Background()) })
 
-	return runtimespec.Spec{
-		Root: &runtimespec.Root{Path: root},
-	}, func() { os.RemoveAll(root) }
+	spec.FreeBSD = &runtimespec.FreeBSD{
+		Network: &runtimespec.FreeBSDNetwork{
+			IPv4: &runtimespec.FreeBSDIPv4{
+				Mode: "inherit"},
+		},
+	}
+	spec.Process = &runtimespec.Process{
+		Args: []string{"/integ-inside", "-test.run", "TestLocalhostHTTPHello"},
+		Env:  []string{fmt.Sprintf("TEST_PORT=%d", port)},
+	}
+
+	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-localhost-http", spec, 500*time.Millisecond)
+	assert.NoError(t, err)
+	t.Logf("received %d request(s)\n", called)
+	assert.GreaterOrEqual(t, called, int64(1), "should receive at least one request")
+	assertJailPass(t, stdout, stderr)
+	lines := strings.Split(string(stdout), "\n")
+	assert.Len(t, lines, 3, "should be exactly 3 lines of output")
+	assert.Equal(t, response, lines[0], "response should match")
+	if t.Failed() {
+		t.Log("STDOUT:", string(stdout))
+	}
 }
 
-func copyFile(source, dest string) error {
-	stat, err := os.Stat(source)
-	if err != nil {
-		return err
+func setupSimpleExitingJail(t *testing.T) runtimespec.Spec {
+	root := t.TempDir()
+
+	s, err := os.Stat("bin/integ-inside")
+	require.NoError(t, err, "stat bin/integ-inside")
+	err = util.CopyFile("bin/integ-inside", filepath.Join(root, "integ-inside"), s.Mode())
+	require.NoError(t, err, "copy inside binary")
+
+	t.Cleanup(func() {
+		err := os.RemoveAll(root)
+		assert.NoError(t, err, "failed to remove tempdir")
+	})
+	return runtimespec.Spec{
+		Root: &runtimespec.Root{Path: root},
 	}
-	in, err := os.OpenFile(source, os.O_RDONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, stat.Mode())
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
 }
 
 func assertJailPass(t *testing.T, stdout, stderr []byte) {
@@ -255,7 +290,7 @@ func assertJailPass(t *testing.T, stdout, stderr []byte) {
 // process.
 func runSimpleExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait time.Duration) ([]byte, []byte, error) {
 	t.Helper()
-	bundleDir, err := ioutil.TempDir("", "runj-integ-test-"+t.Name()+"-"+id)
+	bundleDir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name()+"-"+id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -277,7 +312,7 @@ func runSimpleExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait t
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal config: %w", err)
 	}
-	err = ioutil.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
+	err = os.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
 	if err != nil {
 		return nil, nil, fmt.Errorf("write config: %w", err)
 	}
@@ -328,11 +363,11 @@ func runSimpleExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait t
 	}
 	time.Sleep(wait)
 
-	stdoutBytes, err := ioutil.ReadFile(filepath.Join(bundleDir, "stdout"))
+	stdoutBytes, err := os.ReadFile(filepath.Join(bundleDir, "stdout"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("read stdout file: %w", err)
 	}
-	stderrBytes, err := ioutil.ReadFile(filepath.Join(bundleDir, "stderr"))
+	stderrBytes, err := os.ReadFile(filepath.Join(bundleDir, "stderr"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("read stderr file: %w", err)
 	}

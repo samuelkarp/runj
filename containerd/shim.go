@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	"go.sbk.wtf/runj/internal/util"
+	"go.sbk.wtf/runj/oci"
 	"go.sbk.wtf/runj/state"
 
 	"github.com/containerd/console"
@@ -22,6 +25,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/process"
+	runtimeoptions "github.com/containerd/containerd/pkg/runtimeoptions/v1"
 	"github.com/containerd/containerd/runtime"
 	"github.com/containerd/containerd/runtime/v2/shim"
 	"github.com/containerd/containerd/runtime/v2/task"
@@ -382,8 +386,15 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
 		return nil, errdefs.ErrInvalidArgument
 	}
+
 	s.setBundlePath(req.Bundle)
-	err := filterIncompatibleLinuxMounts(req.Bundle)
+
+	err := setupRunjExtension(req.Bundle, req.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	err = filterIncompatibleLinuxMounts(req.Bundle)
 	if err != nil {
 		return nil, err
 	}
@@ -460,6 +471,26 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	return &taskAPI.CreateTaskResponse{
 		Pid: uint32(ociState.PID),
 	}, nil
+}
+
+func setupRunjExtension(bundle string, options *ptypes.Any) error {
+	if options == nil {
+		return nil
+	}
+	v, err := typeurl.UnmarshalAny(options)
+	if err != nil {
+		return err
+	}
+	opts := v.(*runtimeoptions.Options)
+	if opts == nil || opts.ConfigPath == "" {
+		return nil
+	}
+	// validate file name is runj.ext.json
+	basename := filepath.Base(opts.ConfigPath)
+	if basename != oci.RunjExtensionFileName {
+		return fmt.Errorf("bad file name: only files named %q are supported for --runtime-config-path, found %q", oci.RunjExtensionFileName, basename)
+	}
+	return util.CopyFile(opts.ConfigPath, filepath.Join(bundle, oci.RunjExtensionFileName), 0600)
 }
 
 func (s *service) setBundlePath(bundlePath string) error {

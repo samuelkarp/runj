@@ -1,5 +1,56 @@
 *Placeholder for OCI changes*
 
+# FreeBSD extensions
+
+runj supports a new `freebsd` field in the `config.json` that models
+FreeBSD-specific configuration options for jails.  The `freebsd` field can also
+be written to a runj-specific `runj.ext.json` file in the bundle directory to
+allow this functionality to be tested without modifying other tools.
+
+Fields inside the `freebsd` struct:
+* `network` (struct)
+
+Fields inside the `network` struct:
+* `ipv4` (struct)
+
+Fields inside the `ipv4` struct:
+* `mode` (string) - valid options are `new`, `inherit`, and `disable`.  This
+  field is the equivalent of the `ip4` field described in the `jail(8)` manual
+  page.
+* `addr` ([]string) - list of IPv4 addresses assigned to the jail.  This field
+  is the equivalent of the `ip4.addr` field described in the `jail(8)` manual
+  page.
+
+If embedded in the normal `config.json`, an example would look as follows:
+
+```json
+{
+  "ociVersion": "1.0.2",
+  "process": {
+    // omitted
+  },
+  "freebsd": {
+    "network": {
+      "ipv4": {
+        "mode": "new",
+        "addr": ["127.0.0.2"]
+      }
+    }
+  }
+}
+```
+
+If included in a separate `runj.ext.json`, an example would look as follows:
+
+```json
+{
+  "network": {
+    "ipv4": {
+      "mode": "inherit"
+    }
+  }
+}
+```
 # `create`
 
 The `create` command is documented [in the

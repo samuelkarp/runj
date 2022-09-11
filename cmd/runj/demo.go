@@ -171,6 +171,13 @@ func exampleSpec() *runtimespec.Spec {
 			Type:        "devfs",
 			Options:     []string{"ruleset=4"},
 		}},
+		FreeBSD: &runtimespec.FreeBSD{
+			Network: &runtimespec.FreeBSDNetwork{
+				IPv4: &runtimespec.FreeBSDIPv4{
+					Mode: runtimespec.FreeBSDIPv4ModeInherit,
+				},
+			},
+		},
 	}
 }
 
