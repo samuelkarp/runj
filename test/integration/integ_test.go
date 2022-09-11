@@ -120,8 +120,7 @@ func TestCreateDelete(t *testing.T) {
 }
 
 func TestJailHello(t *testing.T) {
-	spec, cleanup := setupSimpleExitingJail(t)
-	defer cleanup()
+	spec := setupSimpleExitingJail(t)
 
 	spec.Process = &runtimespec.Process{
 		Args: []string{"/integ-inside", "-test.v", "-test.run", "TestHello"},
@@ -136,8 +135,7 @@ func TestJailHello(t *testing.T) {
 func TestJailEnv(t *testing.T) {
 	env := []string{"Hello=World", "FOO=bar"}
 
-	spec, cleanup := setupSimpleExitingJail(t)
-	defer cleanup()
+	spec := setupSimpleExitingJail(t)
 
 	spec.Process = &runtimespec.Process{
 		Args: []string{"/integ-inside", "-test.run", "TestEnv"},
@@ -155,8 +153,7 @@ func TestJailEnv(t *testing.T) {
 }
 
 func TestJailNullMount(t *testing.T) {
-	spec, cleanup := setupSimpleExitingJail(t)
-	defer cleanup()
+	spec := setupSimpleExitingJail(t)
 
 	volume, err := ioutil.TempDir("", "runj-integ-test-volume-"+t.Name())
 	require.NoError(t, err, "create volume")
@@ -187,8 +184,7 @@ func TestJailNullMount(t *testing.T) {
 func TestJailHostname(t *testing.T) {
 	hostname := fmt.Sprintf("%s.example", t.Name())
 
-	spec, cleanup := setupSimpleExitingJail(t)
-	defer cleanup()
+	spec := setupSimpleExitingJail(t)
 
 	spec.Hostname = hostname
 	spec.Process = &runtimespec.Process{
@@ -206,7 +202,7 @@ func TestJailHostname(t *testing.T) {
 	}
 }
 
-func setupSimpleExitingJail(t *testing.T) (runtimespec.Spec, func()) {
+func setupSimpleExitingJail(t *testing.T) runtimespec.Spec {
 	root, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
 	require.NoError(t, err, "create root")
 
@@ -215,9 +211,10 @@ func setupSimpleExitingJail(t *testing.T) (runtimespec.Spec, func()) {
 	err = util.CopyFile("bin/integ-inside", filepath.Join(root, "integ-inside"), s.Mode())
 	require.NoError(t, err, "copy inside binary")
 
+	t.Cleanup(func() { os.RemoveAll(root) })
 	return runtimespec.Spec{
 		Root: &runtimespec.Root{Path: root},
-	}, func() { os.RemoveAll(root) }
+	}
 }
 
 func assertJailPass(t *testing.T, stdout, stderr []byte) {
