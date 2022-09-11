@@ -384,6 +384,9 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	}
 	s.setBundlePath(req.Bundle)
 	err := filterIncompatibleLinuxMounts(req.Bundle)
+	if err != nil {
+		return nil, err
+	}
 
 	var mounts []process.Mount
 	for _, m := range req.Rootfs {
