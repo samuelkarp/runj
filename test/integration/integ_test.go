@@ -6,7 +6,6 @@ package integration
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,7 +23,7 @@ import (
 )
 
 func TestCreateDelete(t *testing.T) {
-	dir, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
+	dir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name())
 	require.NoError(t, err)
 	defer func() {
 		if !t.Failed() {
@@ -75,7 +74,7 @@ func TestCreateDelete(t *testing.T) {
 
 			configJSON, err := json.Marshal(tc)
 			require.NoError(t, err, "marshal config")
-			err = ioutil.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
+			err = os.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
 			require.NoError(t, err, "write config")
 
 			id := "test-create-delete-" + strconv.Itoa(i)
@@ -102,7 +101,7 @@ func TestCreateDelete(t *testing.T) {
 			assert.NoError(t, err, "runj create")
 			err = out.Close()
 			assert.NoError(t, err, "out file close")
-			outBytes, err := ioutil.ReadFile(filepath.Join(bundleDir, "out"))
+			outBytes, err := os.ReadFile(filepath.Join(bundleDir, "out"))
 			assert.NoError(t, err, "out file read")
 			t.Log("runj create output:", string(outBytes))
 
@@ -155,11 +154,8 @@ func TestJailEnv(t *testing.T) {
 func TestJailNullMount(t *testing.T) {
 	spec := setupSimpleExitingJail(t)
 
-	volume, err := ioutil.TempDir("", "runj-integ-test-volume-"+t.Name())
-	require.NoError(t, err, "create volume")
-	defer os.RemoveAll(volume)
-
-	err = ioutil.WriteFile(filepath.Join(volume, "hello.txt"), []byte("input file"), 0644)
+	volume := t.TempDir()
+	err := os.WriteFile(filepath.Join(volume, "hello.txt"), []byte("input file"), 0644)
 	require.NoError(t, err, "input file")
 
 	spec.Process = &runtimespec.Process{
@@ -173,7 +169,7 @@ func TestJailNullMount(t *testing.T) {
 	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-null", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	assertJailPass(t, stdout, stderr)
-	output, err := ioutil.ReadFile(filepath.Join(volume, "world.txt"))
+	output, err := os.ReadFile(filepath.Join(volume, "world.txt"))
 	assert.NoError(t, err, "failed to read world.txt")
 	assert.Equal(t, "output file", string(output))
 	if t.Failed() {
@@ -203,15 +199,17 @@ func TestJailHostname(t *testing.T) {
 }
 
 func setupSimpleExitingJail(t *testing.T) runtimespec.Spec {
-	root, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
-	require.NoError(t, err, "create root")
+	root := t.TempDir()
 
 	s, err := os.Stat("bin/integ-inside")
 	require.NoError(t, err, "stat bin/integ-inside")
 	err = util.CopyFile("bin/integ-inside", filepath.Join(root, "integ-inside"), s.Mode())
 	require.NoError(t, err, "copy inside binary")
 
-	t.Cleanup(func() { os.RemoveAll(root) })
+	t.Cleanup(func() {
+		err := os.RemoveAll(root)
+		assert.NoError(t, err, "failed to remove tempdir")
+	})
 	return runtimespec.Spec{
 		Root: &runtimespec.Root{Path: root},
 	}
@@ -236,7 +234,7 @@ func assertJailPass(t *testing.T, stdout, stderr []byte) {
 // process.
 func runSimpleExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait time.Duration) ([]byte, []byte, error) {
 	t.Helper()
-	bundleDir, err := ioutil.TempDir("", "runj-integ-test-"+t.Name()+"-"+id)
+	bundleDir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name()+"-"+id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -258,7 +256,7 @@ func runSimpleExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait t
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal config: %w", err)
 	}
-	err = ioutil.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
+	err = os.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
 	if err != nil {
 		return nil, nil, fmt.Errorf("write config: %w", err)
 	}
@@ -309,11 +307,11 @@ func runSimpleExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait t
 	}
 	time.Sleep(wait)
 
-	stdoutBytes, err := ioutil.ReadFile(filepath.Join(bundleDir, "stdout"))
+	stdoutBytes, err := os.ReadFile(filepath.Join(bundleDir, "stdout"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("read stdout file: %w", err)
 	}
-	stderrBytes, err := ioutil.ReadFile(filepath.Join(bundleDir, "stderr"))
+	stderrBytes, err := os.ReadFile(filepath.Join(bundleDir, "stderr"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("read stderr file: %w", err)
 	}
