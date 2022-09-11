@@ -6,7 +6,6 @@ package integration
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.sbk.wtf/runj/internal/util"
 
 	"go.sbk.wtf/runj/runtimespec"
 
@@ -209,31 +210,14 @@ func setupSimpleExitingJail(t *testing.T) (runtimespec.Spec, func()) {
 	root, err := ioutil.TempDir("", "runj-integ-test-"+t.Name())
 	require.NoError(t, err, "create root")
 
-	err = copyFile("bin/integ-inside", filepath.Join(root, "integ-inside"))
+	s, err := os.Stat("bin/integ-inside")
+	require.NoError(t, err, "stat bin/integ-inside")
+	err = util.CopyFile("bin/integ-inside", filepath.Join(root, "integ-inside"), s.Mode())
 	require.NoError(t, err, "copy inside binary")
 
 	return runtimespec.Spec{
 		Root: &runtimespec.Root{Path: root},
 	}, func() { os.RemoveAll(root) }
-}
-
-func copyFile(source, dest string) error {
-	stat, err := os.Stat(source)
-	if err != nil {
-		return err
-	}
-	in, err := os.OpenFile(source, os.O_RDONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, stat.Mode())
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
 }
 
 func assertJailPass(t *testing.T, stdout, stderr []byte) {

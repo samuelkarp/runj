@@ -2,11 +2,11 @@ package oci
 
 import (
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"go.sbk.wtf/runj/internal/util"
 	"go.sbk.wtf/runj/runtimespec"
 	"go.sbk.wtf/runj/state"
 )
@@ -29,38 +29,18 @@ const (
 // Any changes made to the config.json file after this operation will not have
 // an effect on the container.
 func StoreConfig(id, bundlePath string) error {
-	err := copyFile(filepath.Join(bundlePath, ConfigFileName), filepath.Join(state.Dir(id), ConfigFileName))
+	err := util.CopyFile(filepath.Join(bundlePath, ConfigFileName), filepath.Join(state.Dir(id), ConfigFileName), 0600)
 	if err != nil {
 		return err
 	}
 	extFilename := filepath.Join(bundlePath, RunjExtensionFileName)
 	if _, err = os.Stat(extFilename); err == nil {
-		err = copyFile(extFilename, filepath.Join(state.Dir(id), RunjExtensionFileName))
+		err = util.CopyFile(extFilename, filepath.Join(state.Dir(id), RunjExtensionFileName), 0600)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func copyFile(source, dest string) error {
-	input, err := os.OpenFile(source, os.O_RDONLY, 0)
-	if err != nil {
-		return err
-	}
-	defer input.Close()
-	output, err := os.OpenFile(dest, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		output.Close()
-		if err != nil {
-			os.Remove(output.Name())
-		}
-	}()
-	_, err = io.Copy(output, input)
-	return err
 }
 
 // LoadConfig loads the config file stored in the state directory
