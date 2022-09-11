@@ -4,13 +4,17 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -193,6 +197,58 @@ func TestJailHostname(t *testing.T) {
 	lines := strings.Split(string(stdout), "\n")
 	assert.Len(t, lines, 3, "should be exactly 3 lines of output")
 	assert.Equal(t, hostname, lines[0], "hostname should match")
+	if t.Failed() {
+		t.Log("STDOUT:", string(stdout))
+	}
+}
+
+func TestHostIPv4Network(t *testing.T) {
+	spec := setupSimpleExitingJail(t)
+	mux := http.NewServeMux()
+	var called int64
+	const response = "hi there!"
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&called, 1)
+		fmt.Fprint(w, response)
+	})
+	server := &http.Server{
+		Addr:    ":0",
+		Handler: mux,
+	}
+	listener, err := net.Listen("tcp", ":0")
+	require.NoError(t, err, "failed to bind to port")
+	t.Cleanup(func() { listener.Close() })
+	port := listener.Addr().(*net.TCPAddr).Port
+	t.Log("test server listening port:", port)
+
+	go func() {
+		err = server.Serve(listener)
+		if err == http.ErrServerClosed {
+			return
+		}
+		require.NoError(t, err, "failed to set up test server")
+	}()
+	t.Cleanup(func() { server.Shutdown(context.Background()) })
+
+	spec.FreeBSD = &runtimespec.FreeBSD{
+		Network: &runtimespec.FreeBSDNetwork{
+			IPv4: &runtimespec.FreeBSDIPv4{
+				Mode: "inherit"},
+		},
+	}
+	spec.Process = &runtimespec.Process{
+		Args: []string{"/integ-inside", "-test.run", "TestLocalhostHTTPHello"},
+		Env:  []string{fmt.Sprintf("TEST_PORT=%d", port)},
+	}
+
+	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-localhost-http", spec, 500*time.Millisecond)
+	assert.NoError(t, err)
+	t.Logf("received %d request(s)\n", called)
+	assert.GreaterOrEqual(t, called, int64(1), "should receive at least one request")
+	assertJailPass(t, stdout, stderr)
+	lines := strings.Split(string(stdout), "\n")
+	assert.Len(t, lines, 3, "should be exactly 3 lines of output")
+	assert.Equal(t, response, lines[0], "response should match")
 	if t.Failed() {
 		t.Log("STDOUT:", string(stdout))
 	}

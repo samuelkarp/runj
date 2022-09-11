@@ -5,8 +5,10 @@ package integration
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"testing"
 
@@ -39,4 +41,15 @@ func TestHostname(t *testing.T) {
 	hostname, err := os.Hostname()
 	assert.NoError(t, err, "failed to retrieve hostname")
 	fmt.Println(hostname)
+}
+
+func TestLocalhostHTTPHello(t *testing.T) {
+	port := os.Getenv("TEST_PORT")
+	requestURL := fmt.Sprintf("http://127.0.0.1:%s/hello", port)
+	resp, err := http.Get(requestURL)
+	assert.NoError(t, err, "failed to get from %q", requestURL)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err, "failed to read body")
+	fmt.Println(string(body))
 }
