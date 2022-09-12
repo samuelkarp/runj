@@ -47,7 +47,7 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 
 	// setup directory structure
 	imageDir := filepath.Join(tempDir, "image")
-	blobDir := filepath.Join(imageDir, "blobs")
+	blobDir := filepath.Join(imageDir, "blobs", "sha256")
 	err = os.MkdirAll(blobDir, 0755)
 	if err != nil {
 		return err
