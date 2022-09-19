@@ -19,4 +19,4 @@ Tips:
 
 **Terms of contribution:**
 
-By submitting this pull request, I agree that this contribution is licensed under the terms found in [the LICENSE file](/LICENSE).
+By submitting this pull request, I agree that this contribution is licensed under the terms found in [the LICENSE file](https://github.com/samuelkarp/runj/blob/main/LICENSE).
