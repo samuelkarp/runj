@@ -4,21 +4,15 @@
 package integration
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
-
-	"go.sbk.wtf/runj/internal/util"
 
 	"go.sbk.wtf/runj/runtimespec"
 
@@ -58,6 +52,29 @@ func TestCreateDelete(t *testing.T) {
 		{
 			Hostname: "foo.bar.example.com",
 			Process:  &runtimespec.Process{},
+		},
+		// ipv4
+		{
+			Process: &runtimespec.Process{},
+			FreeBSD: &runtimespec.FreeBSD{
+				Network: &runtimespec.FreeBSDNetwork{
+					IPv4: &runtimespec.FreeBSDIPv4{
+						Mode: runtimespec.FreeBSDIPv4ModeNew,
+						Addr: []string{"127.0.0.2"},
+					},
+				},
+			},
+		},
+		// vnet
+		{
+			Process: &runtimespec.Process{},
+			FreeBSD: &runtimespec.FreeBSD{
+				Network: &runtimespec.FreeBSDNetwork{
+					VNet: &runtimespec.FreeBSDVNet{
+						Mode: runtimespec.FreeBSDVNetModeNew,
+					},
+				},
+			},
 		},
 	}
 
@@ -129,7 +146,7 @@ func TestJailHello(t *testing.T) {
 		Args: []string{"/integ-inside", "-test.v", "-test.run", "TestHello"},
 	}
 
-	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
+	stdout, stderr, err := runExitingJail(t, "integ-test-hello", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	t.Log("STDOUT:", string(stdout))
 	t.Log("STDERR:", string(stderr))
@@ -145,7 +162,7 @@ func TestJailEnv(t *testing.T) {
 		Env:  env,
 	}
 
-	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-env", spec, 500*time.Millisecond)
+	stdout, stderr, err := runExitingJail(t, "integ-test-env", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	assertJailPass(t, stdout, stderr)
 	lines := strings.Split(string(stdout), "\n")
@@ -170,7 +187,7 @@ func TestJailNullMount(t *testing.T) {
 		Type:        "nullfs",
 		Source:      volume,
 	}}
-	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-null", spec, 500*time.Millisecond)
+	stdout, stderr, err := runExitingJail(t, "integ-test-null", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	assertJailPass(t, stdout, stderr)
 	output, err := os.ReadFile(filepath.Join(volume, "world.txt"))
@@ -191,7 +208,7 @@ func TestJailHostname(t *testing.T) {
 		Args: []string{"/integ-inside", "-test.run", "TestHostname"},
 	}
 
-	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-hostname", spec, 500*time.Millisecond)
+	stdout, stderr, err := runExitingJail(t, "integ-test-hostname", spec, 500*time.Millisecond)
 	assert.NoError(t, err)
 	assertJailPass(t, stdout, stderr)
 	lines := strings.Split(string(stdout), "\n")
@@ -200,176 +217,4 @@ func TestJailHostname(t *testing.T) {
 	if t.Failed() {
 		t.Log("STDOUT:", string(stdout))
 	}
-}
-
-func TestHostIPv4Network(t *testing.T) {
-	spec := setupSimpleExitingJail(t)
-	mux := http.NewServeMux()
-	var called int64
-	const response = "hi there!"
-	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt64(&called, 1)
-		fmt.Fprint(w, response)
-	})
-	server := &http.Server{
-		Addr:    ":0",
-		Handler: mux,
-	}
-	listener, err := net.Listen("tcp", ":0")
-	require.NoError(t, err, "failed to bind to port")
-	t.Cleanup(func() { listener.Close() })
-	port := listener.Addr().(*net.TCPAddr).Port
-	t.Log("test server listening port:", port)
-
-	go func() {
-		err = server.Serve(listener)
-		if err == http.ErrServerClosed {
-			return
-		}
-		require.NoError(t, err, "failed to set up test server")
-	}()
-	t.Cleanup(func() { server.Shutdown(context.Background()) })
-
-	spec.FreeBSD = &runtimespec.FreeBSD{
-		Network: &runtimespec.FreeBSDNetwork{
-			IPv4: &runtimespec.FreeBSDIPv4{
-				Mode: "inherit"},
-		},
-	}
-	spec.Process = &runtimespec.Process{
-		Args: []string{"/integ-inside", "-test.run", "TestLocalhostHTTPHello"},
-		Env:  []string{fmt.Sprintf("TEST_PORT=%d", port)},
-	}
-
-	stdout, stderr, err := runSimpleExitingJail(t, "integ-test-localhost-http", spec, 500*time.Millisecond)
-	assert.NoError(t, err)
-	t.Logf("received %d request(s)\n", called)
-	assert.GreaterOrEqual(t, called, int64(1), "should receive at least one request")
-	assertJailPass(t, stdout, stderr)
-	lines := strings.Split(string(stdout), "\n")
-	assert.Len(t, lines, 3, "should be exactly 3 lines of output")
-	assert.Equal(t, response, lines[0], "response should match")
-	if t.Failed() {
-		t.Log("STDOUT:", string(stdout))
-	}
-}
-
-func setupSimpleExitingJail(t *testing.T) runtimespec.Spec {
-	root := t.TempDir()
-
-	s, err := os.Stat("bin/integ-inside")
-	require.NoError(t, err, "stat bin/integ-inside")
-	err = util.CopyFile("bin/integ-inside", filepath.Join(root, "integ-inside"), s.Mode())
-	require.NoError(t, err, "copy inside binary")
-
-	t.Cleanup(func() {
-		err := os.RemoveAll(root)
-		assert.NoError(t, err, "failed to remove tempdir")
-	})
-	return runtimespec.Spec{
-		Root: &runtimespec.Root{Path: root},
-	}
-}
-
-func assertJailPass(t *testing.T, stdout, stderr []byte) {
-	t.Helper()
-	assert.True(t, len(stdout) > 1, "stdout should have at least two lines")
-	assert.Equal(t, []byte{}, stderr, "stderr should be empty")
-	lines := strings.Split(string(stdout), "\n")
-	assert.Equal(t, "PASS", lines[len(lines)-2], "second to last line of output should be PASS")
-}
-
-// runSimpleExitingJail is a helper that takes a spec as input, sets up a bundle
-// starts a jail, collects its output, and waits for the jail's entrypoint to
-// exit.  It can be used in tests where the entrypoint embeds the test
-// assertions.
-// TODO: Build a better non-racy or less-racy end condition.
-// The wait parameter is currently used as a simple sleep between `runj start`
-// and `runj delete`.  A normal wait is not used as the jail's main process is
-// not a direct child of this test; it's instead a child of the `runj create`
-// process.
-func runSimpleExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait time.Duration) ([]byte, []byte, error) {
-	t.Helper()
-	bundleDir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name()+"-"+id)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() {
-		if err == nil {
-			os.RemoveAll(bundleDir)
-		} else {
-			t.Log("preserving tempdir due to error", bundleDir, err)
-		}
-	}()
-	rootDir := filepath.Join(bundleDir, "root")
-	err = os.MkdirAll(rootDir, 0755)
-	if err != nil {
-		return nil, nil, fmt.Errorf("create bundle dir: %w", err)
-	}
-	t.Log("bundle", bundleDir)
-
-	configJSON, err := json.Marshal(spec)
-	if err != nil {
-		return nil, nil, fmt.Errorf("marshal config: %w", err)
-	}
-	err = os.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
-	if err != nil {
-		return nil, nil, fmt.Errorf("write config: %w", err)
-	}
-
-	cmd := exec.Command("runj", "create", id, bundleDir)
-	cmd.Stdin = nil
-	stdout, err := os.OpenFile(filepath.Join(bundleDir, "stdout"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, nil, fmt.Errorf("create stdout file: %w", err)
-	}
-	cmd.Stdout = stdout
-	stderr, err := os.OpenFile(filepath.Join(bundleDir, "stderr"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, nil, fmt.Errorf("create stderr file: %w", err)
-	}
-	cmd.Stderr = stderr
-
-	err = cmd.Run()
-	if err != nil {
-		return nil, nil, fmt.Errorf("runj create: %w", err)
-	}
-	err = stdout.Close()
-	if err != nil {
-		return nil, nil, fmt.Errorf("close stdout file: %w", err)
-	}
-	err = stderr.Close()
-	if err != nil {
-		return nil, nil, fmt.Errorf("close stderr file: %w", err)
-	}
-
-	defer func() {
-		cmd = exec.Command("runj", "delete", id)
-		cmd.Stdin = nil
-		outBytes, cleanupErr := cmd.CombinedOutput()
-		if cleanupErr != nil && err == nil {
-			err = fmt.Errorf("runj delete: %w", cleanupErr)
-		}
-		if len(outBytes) > 0 {
-			t.Log("runj delete output:", string(outBytes))
-		}
-	}()
-
-	// runj start
-	cmd = exec.Command("runj", "start", id)
-	err = cmd.Run()
-	if err != nil {
-		return nil, nil, fmt.Errorf("runj start: %w", err)
-	}
-	time.Sleep(wait)
-
-	stdoutBytes, err := os.ReadFile(filepath.Join(bundleDir, "stdout"))
-	if err != nil {
-		return nil, nil, fmt.Errorf("read stdout file: %w", err)
-	}
-	stderrBytes, err := os.ReadFile(filepath.Join(bundleDir, "stderr"))
-	if err != nil {
-		return nil, nil, fmt.Errorf("read stderr file: %w", err)
-	}
-	return stdoutBytes, stderrBytes, nil
 }

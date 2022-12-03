@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,4 +53,25 @@ func TestLocalhostHTTPHello(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err, "failed to read body")
 	fmt.Println(string(body))
+}
+
+func TestVnetConfigAndPing(t *testing.T) {
+	var (
+		iface   = os.Getenv("TEST_INTERFACE")
+		ip      = os.Getenv("TEST_IP")
+		mask    = os.Getenv("TEST_MASK")
+		gateway = os.Getenv("TEST_GATEWAY")
+		pingIP  = os.Getenv("TEST_PING_IP")
+	)
+	out, err := exec.Command("/sbin/ifconfig", iface, "inet", ip+"/"+mask).CombinedOutput()
+	t.Logf("ifconfig %s inet %s/%s: %s", iface, ip, mask, string(out))
+	assert.NoError(t, err)
+
+	out, err = exec.Command("/sbin/route", "-4", "add", "default", gateway).CombinedOutput()
+	t.Logf("route -4 add default %s: %s", ip, string(out))
+	assert.NoError(t, err)
+
+	out, err = exec.Command("/sbin/ping", "-c2", pingIP).CombinedOutput()
+	t.Logf("ping -c2 %s: %s", pingIP, string(out))
+	assert.NoError(t, err)
 }

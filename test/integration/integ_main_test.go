@@ -5,12 +5,20 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.sbk.wtf/runj/internal/util"
+	"go.sbk.wtf/runj/runtimespec"
 
 	"github.com/cheggaaa/pb/v3"
 
@@ -104,4 +112,147 @@ func downloadImage(arch, version string, f *os.File) error {
 	_, err = io.Copy(f, barReader)
 	bar.Finish()
 	return err
+}
+
+func setupSimpleExitingJail(t *testing.T) runtimespec.Spec {
+	root := t.TempDir()
+
+	s, err := os.Stat("bin/integ-inside")
+	require.NoError(t, err, "stat bin/integ-inside")
+	err = util.CopyFile("bin/integ-inside", filepath.Join(root, "integ-inside"), s.Mode())
+	require.NoError(t, err, "copy inside binary")
+
+	t.Cleanup(func() {
+		err := os.RemoveAll(root)
+		assert.NoError(t, err, "failed to remove tempdir")
+	})
+	return runtimespec.Spec{
+		Root: &runtimespec.Root{Path: root},
+	}
+}
+
+func setupFullExitingJail(t *testing.T) runtimespec.Spec {
+	s, err := os.Stat("bin/integ-inside")
+	require.NoError(t, err, "stat bin/integ-inside")
+	integInside := filepath.Join(fullRootfs, "integ-inside")
+	if _, err := os.Stat(integInside); err == nil {
+		err = os.Remove(integInside)
+		assert.NoError(t, err, "remove old inside binary")
+	}
+	err = util.CopyFile("bin/integ-inside", integInside, s.Mode())
+	require.NoError(t, err, "copy inside binary")
+
+	return runtimespec.Spec{
+		Root: &runtimespec.Root{Path: fullRootfs},
+		Mounts: []runtimespec.Mount{{
+			Destination: "/dev",
+			Source:      "devfs",
+			Type:        "devfs",
+			Options:     []string{"ruleset=4"},
+		}},
+	}
+}
+
+func assertJailPass(t *testing.T, stdout, stderr []byte) {
+	t.Helper()
+	assert.True(t, len(stdout) > 1, "stdout should have at least two lines")
+	assert.Equal(t, []byte{}, stderr, "stderr should be empty")
+	lines := strings.Split(string(stdout), "\n")
+	assert.Equal(t, "PASS", lines[len(lines)-2], "second to last line of output should be PASS")
+}
+
+// runExitingJail is a helper that takes a spec as input, sets up a bundle
+// starts a jail, collects its output, and waits for the jail's entrypoint to
+// exit.  It can be used in tests where the entrypoint embeds the test
+// assertions.
+// TODO: Build a better non-racy or less-racy end condition.
+// The wait parameter is currently used as a simple sleep between `runj start`
+// and `runj delete`.  A normal wait is not used as the jail's main process is
+// not a direct child of this test; it's instead a child of the `runj create`
+// process.
+func runExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait time.Duration) ([]byte, []byte, error) {
+	t.Helper()
+	name := strings.ReplaceAll(t.Name(), "/", "-")
+	bundleDir, err := os.MkdirTemp("", "runj-integ-test-"+name+"-"+id)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		if err == nil {
+			os.RemoveAll(bundleDir)
+		} else {
+			t.Log("preserving tempdir due to error", bundleDir, err)
+		}
+	}()
+	rootDir := filepath.Join(bundleDir, "root")
+	err = os.MkdirAll(rootDir, 0755)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create bundle dir: %w", err)
+	}
+	t.Log("bundle", bundleDir)
+
+	configJSON, err := json.Marshal(spec)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal config: %w", err)
+	}
+	err = os.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
+	if err != nil {
+		return nil, nil, fmt.Errorf("write config: %w", err)
+	}
+
+	cmd := exec.Command("runj", "create", id, bundleDir)
+	cmd.Stdin = nil
+	stdout, err := os.OpenFile(filepath.Join(bundleDir, "stdout"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create stdout file: %w", err)
+	}
+	cmd.Stdout = stdout
+	stderr, err := os.OpenFile(filepath.Join(bundleDir, "stderr"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create stderr file: %w", err)
+	}
+	cmd.Stderr = stderr
+
+	err = cmd.Run()
+	if err != nil {
+		return nil, nil, fmt.Errorf("runj create: %w", err)
+	}
+	err = stdout.Close()
+	if err != nil {
+		return nil, nil, fmt.Errorf("close stdout file: %w", err)
+	}
+	err = stderr.Close()
+	if err != nil {
+		return nil, nil, fmt.Errorf("close stderr file: %w", err)
+	}
+
+	defer func() {
+		cmd = exec.Command("runj", "delete", id)
+		cmd.Stdin = nil
+		outBytes, cleanupErr := cmd.CombinedOutput()
+		if cleanupErr != nil && err == nil {
+			err = fmt.Errorf("runj delete: %w", cleanupErr)
+		}
+		if len(outBytes) > 0 {
+			t.Log("runj delete output:", string(outBytes))
+		}
+	}()
+
+	// runj start
+	cmd = exec.Command("runj", "start", id)
+	err = cmd.Run()
+	if err != nil {
+		return nil, nil, fmt.Errorf("runj start: %w", err)
+	}
+	time.Sleep(wait)
+
+	stdoutBytes, err := os.ReadFile(filepath.Join(bundleDir, "stdout"))
+	if err != nil {
+		return nil, nil, fmt.Errorf("read stdout file: %w", err)
+	}
+	stderrBytes, err := os.ReadFile(filepath.Join(bundleDir, "stderr"))
+	if err != nil {
+		return nil, nil, fmt.Errorf("read stderr file: %w", err)
+	}
+	return stdoutBytes, stderrBytes, nil
 }
