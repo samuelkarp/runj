@@ -12,6 +12,7 @@ Fields inside the `freebsd` struct:
 
 Fields inside the `network` struct:
 * `ipv4` (struct)
+* `vnet` (struct)
 
 Fields inside the `ipv4` struct:
 * `mode` (string) - valid options are `new`, `inherit`, and `disable`.  This
@@ -20,6 +21,13 @@ Fields inside the `ipv4` struct:
 * `addr` ([]string) - list of IPv4 addresses assigned to the jail.  This field
   is the equivalent of the `ip4.addr` field described in the `jail(8)` manual
   page.
+
+Fields inside the `vnet` struct:
+* `mode` (string) - valid options are `new` and `inherit`.  This field is the
+  equivalent of the `vnet` field described in the `jail(8)` manual page.
+* `interfaces` ([]string) - list of network interfaces assigned to the jail.
+  This field is the equivalent of the `vnet.interface` field described in the
+  `jail(8)` manual page.
 
 If embedded in the normal `config.json`, an example would look as follows:
 
@@ -34,6 +42,10 @@ If embedded in the normal `config.json`, an example would look as follows:
       "ipv4": {
         "mode": "new",
         "addr": ["127.0.0.2"]
+      },
+      "vnet": {
+        "mode": "new",
+        "interfaces": ["epair0b"]
       }
     }
   }
@@ -46,6 +58,9 @@ If included in a separate `runj.ext.json`, an example would look as follows:
 {
   "network": {
     "ipv4": {
+      "mode": "inherit"
+    },
+    "vnet": {
       "mode": "inherit"
     }
   }

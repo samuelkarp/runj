@@ -95,5 +95,16 @@ func merge(spec *runtimespec.Spec, freebsd *runtimespec.FreeBSD) {
 				spec.FreeBSD.Network.IPv4.Addr = append(spec.FreeBSD.Network.IPv4.Addr, freebsd.Network.IPv4.Addr...)
 			}
 		}
+		if freebsd.Network.VNet != nil {
+			if spec.FreeBSD.Network.VNet == nil {
+				spec.FreeBSD.Network.VNet = &runtimespec.FreeBSDVNet{}
+			}
+			if freebsd.Network.VNet.Mode != "" {
+				spec.FreeBSD.Network.VNet.Mode = freebsd.Network.VNet.Mode
+			}
+			if len(freebsd.Network.VNet.Interfaces) > 0 {
+				spec.FreeBSD.Network.VNet.Interfaces = append(spec.FreeBSD.Network.VNet.Interfaces, freebsd.Network.VNet.Interfaces...)
+			}
+		}
 	}
 }

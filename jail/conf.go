@@ -24,6 +24,12 @@ const (
 {{- if gt (len .IP4Addr) 0 }}
   ip4.addr = {{ join .IP4Addr ", " }};
 {{- end }}
+{{- if ne .VNet "" }}
+  vnet = "{{.VNet}}";
+{{- end }}
+{{- if gt (len .VNetInterface) 0 }}
+  vnet.interface = "{{ join .VNetInterface ", " }}";
+{{- end }}
   persist;
 }
 `
@@ -31,11 +37,13 @@ const (
 
 // Config is a limited subset of the parameters available in jail.conf(5) for use with jail(8).
 type Config struct {
-	Name     string
-	Root     string
-	Hostname string
-	IP4      string
-	IP4Addr  []string
+	Name          string
+	Root          string
+	Hostname      string
+	IP4           string
+	IP4Addr       []string
+	VNet          string
+	VNetInterface []string
 }
 
 // CreateConfig creates a config file for the jail(8) command

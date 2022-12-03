@@ -166,9 +166,15 @@ written`)
 			Root:     rootPath,
 			Hostname: ociConfig.Hostname,
 		}
-		if ociConfig.FreeBSD != nil && ociConfig.FreeBSD.Network != nil && ociConfig.FreeBSD.Network.IPv4 != nil {
-			jailcfg.IP4 = string(ociConfig.FreeBSD.Network.IPv4.Mode)
-			jailcfg.IP4Addr = ociConfig.FreeBSD.Network.IPv4.Addr
+		if ociConfig.FreeBSD != nil && ociConfig.FreeBSD.Network != nil {
+			if ociConfig.FreeBSD.Network.IPv4 != nil {
+				jailcfg.IP4 = string(ociConfig.FreeBSD.Network.IPv4.Mode)
+				jailcfg.IP4Addr = ociConfig.FreeBSD.Network.IPv4.Addr
+			}
+			if ociConfig.FreeBSD.Network.VNet != nil {
+				jailcfg.VNet = string(ociConfig.FreeBSD.Network.VNet.Mode)
+				jailcfg.VNetInterface = ociConfig.FreeBSD.Network.VNet.Interfaces
+			}
 		}
 
 		var confPath string

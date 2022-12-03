@@ -28,12 +28,20 @@ func TestRenderConfigGolden(t *testing.T) {
 			Hostname: "test.hostname.example.com",
 		},
 	}, {
-		"network",
+		"ipv4-network",
 		Config{
 			Name:    "network",
 			Root:    "/tmp/test/network/root",
 			IP4:     "new",
 			IP4Addr: []string{"one", "two", "three"},
+		},
+	}, {
+		"vnet",
+		Config{
+			Name:          "vnet",
+			Root:          "/tmp/test/vnet/root",
+			VNet:          "new",
+			VNetInterface: []string{"epair0b", "epair1b"},
 		},
 	}}
 	for _, tc := range tests {

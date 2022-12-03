@@ -154,6 +154,7 @@ type FreeBSD struct {
 // kernel
 type FreeBSDNetwork struct {
 	IPv4 *FreeBSDIPv4 `json:"ipv4,omitempty"`
+	VNet *FreeBSDVNet `json:"vnet,omitempty"`
 }
 
 // FreeBSDIPv4 encapsulates IPv4-specific jail options
@@ -162,7 +163,7 @@ type FreeBSDIPv4 struct {
 	// "inherit", and "disable".  Setting the Addr parameter implies a value of
 	// "new".
 	Mode FreeBSDIPv4Mode `json:"mode,omitempty"`
-	// Addr is a list of IPv4 addresses assigned ot the jail.  If this is set,
+	// Addr is a list of IPv4 addresses assigned to the jail.  If this is set,
 	// the jail is restricted to using only these addresses.
 	Addr []string `json:"addr,omitempty"`
 }
@@ -177,6 +178,24 @@ const (
 	FreeBSDIPv4ModeInherit                 = "inherit"
 	FreeBSDIPv4ModeDisable                 = "disable"
 )
+
+// FreeBSDVNet encapsulates vnet-specific jail options
+type FreeBSDVNet struct {
+	// Mode specifies the vnet mode of the jail.  Possible values are "new" and
+	// "inherit".  Setting the Interfaces parameter implies a value of "new".
+	Mode FreeBSDVNetMode `json:"mode,omitempty"`
+	// Interfaces is a list of interfaces assigned to the jail.  If this is set,
+	// the interfaces are moved into the jail and are inaccessible from the
+	// host.
+	Interfaces []string `json:"interfaces,omitempty"`
+}
+
+const (
+	FreeBSDVNetModeNew     FreeBSDVNetMode = "new"
+	FreeBSDVNetModeInherit                 = "inherit"
+)
+
+type FreeBSDVNetMode string
 
 // End of modification
 
