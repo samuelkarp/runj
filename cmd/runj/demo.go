@@ -122,7 +122,6 @@ func downloadImage(arch, version string, f *os.File) error {
 	_, err = io.Copy(f, barReader)
 	bar.Finish()
 	return err
-
 }
 
 func specCommand() *cobra.Command {
