@@ -8,6 +8,9 @@ task:
     - pkg install -y git-lite go golangci-lint
     - go env -w GOMODCACHE=$(pwd)/.gomodcache
     - go mod download
+    - sudo touch /etc/pf.conf
+    - echo 'pf_enable="YES"' | sudo tee -a /etc/rc.conf
+    - sudo service pf start
   build_script:
     - make
   test_script:
