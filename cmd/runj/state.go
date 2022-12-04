@@ -22,33 +22,34 @@ import (
 //
 // The state of a container includes the following properties:
 //
-// * ociVersion (string, REQUIRED) is version of the Open Container Initiative
-//   Runtime Specification with which the state complies.
-// * id (string, REQUIRED) is the container's ID. This MUST be unique across all
-//   containers on this host. There is no requirement that it be unique across
-//   hosts.
-// * status (string, REQUIRED) is the runtime state of the container. The value
-//   MAY be one of:
-//   * creating: the container is being created (step 2 in the lifecycle)
-//   * created: the runtime has finished the create operation (after step 2 in
+//   - ociVersion (string, REQUIRED) is version of the Open Container Initiative
+//     Runtime Specification with which the state complies.
+//   - id (string, REQUIRED) is the container's ID. This MUST be unique across all
+//     containers on this host. There is no requirement that it be unique across
+//     hosts.
+//   - status (string, REQUIRED) is the runtime state of the container. The value
+//     MAY be one of:
+//   - creating: the container is being created (step 2 in the lifecycle)
+//   - created: the runtime has finished the create operation (after step 2 in
 //     the lifecycle), and the container process has neither exited nor executed
 //     the user-specified program
-//   * running: the container process has executed the user-specified program
+//   - running: the container process has executed the user-specified program
 //     but has not exited (after step 5 in the lifecycle)
-//   * stopped: the container process has exited (step 7 in the lifecycle)
-//   Additional values MAY be defined by the runtime, however, they MUST be used
-//   to represent new runtime states not defined above.
-// * pid (int, REQUIRED when status is created or running on Linux, OPTIONAL on
-//   other platforms) is the ID of the container process. For hooks executed in
-//   the runtime namespace, it is the pid as seen by the runtime. For hooks
-//   executed in the container namespace, it is the pid as seen by the
-//   container.
-// * bundle (string, REQUIRED) is the absolute path to the container's bundle
-//   directory. This is provided so that consumers can find the container's
-//   configuration and root filesystem on the host.
-// * annotations (map, OPTIONAL) contains the list of annotations associated
-//   with the container. If no annotations were provided then this property MAY
-//   either be absent or an empty map.
+//   - stopped: the container process has exited (step 7 in the lifecycle)
+//     Additional values MAY be defined by the runtime, however, they MUST be used
+//     to represent new runtime states not defined above.
+//   - pid (int, REQUIRED when status is created or running on Linux, OPTIONAL on
+//     other platforms) is the ID of the container process. For hooks executed in
+//     the runtime namespace, it is the pid as seen by the runtime. For hooks
+//     executed in the container namespace, it is the pid as seen by the
+//     container.
+//   - bundle (string, REQUIRED) is the absolute path to the container's bundle
+//     directory. This is provided so that consumers can find the container's
+//     configuration and root filesystem on the host.
+//   - annotations (map, OPTIONAL) contains the list of annotations associated
+//     with the container. If no annotations were provided then this property MAY
+//     either be absent or an empty map.
+//
 // The state MAY include additional properties.
 func stateCommand() *cobra.Command {
 	return &cobra.Command{
