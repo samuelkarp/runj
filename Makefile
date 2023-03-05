@@ -1,6 +1,6 @@
 SOURCES != find . -name '*.go'
 
-all: binaries
+all: binaries NOTICE
 
 binaries: runj runj-entrypoint containerd-shim-runj-v1
 
@@ -38,6 +38,17 @@ bin/integ-inside: $(SOURCES) go.mod go.sum
 integ-test: bin/integration bin/integ-inside
 	sudo bin/integration -test.v
 
+NOTICE: go.mod go.sum
+	go-licenses report --template hack/notice.tpl ./... > NOTICE
+
+.PHONY:
+verify-notice:
+	mv NOTICE NOTICE.bak
+	$(MAKE) NOTICE
+	diff NOTICE.bak NOTICE
+	rm NOTICE.bak
+
 .PHONY: clean
 clean:
-	rm -rf bin
+	@rm -rf bin
+	@rm NOTICE.bak 2>/dev/null ||:

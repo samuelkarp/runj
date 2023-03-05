@@ -8,6 +8,7 @@ task:
     - pkg install -y git-lite go golangci-lint
     - go env -w GOMODCACHE=$(pwd)/.gomodcache
     - go mod download
+    - go install github.com/google/go-licenses@latest
     - sudo touch /etc/pf.conf
     - echo 'pf_enable="YES"' | sudo tee -a /etc/rc.conf
     - sudo service pf start
@@ -16,6 +17,7 @@ task:
   test_script:
     - make test
     - make lint
+    - PATH="${PATH}:${HOME}/go/bin" make verify-notice
   integ_script:
     - sudo make install
     - make integ-test
