@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
-	"runtime/debug"
-	"strings"
+
+	"go.sbk.wtf/runj"
 
 	"github.com/spf13/cobra"
 )
@@ -14,7 +13,7 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:     "runj <command>",
 		Short:   "runj is a skeleton OCI runtime for FreeBSD",
-		Version: version(),
+		Version: runj.Version(),
 	}
 	rootCmd.AddCommand(stateCommand())
 	rootCmd.AddCommand(createCommand())
@@ -31,20 +30,6 @@ func main() {
 		}
 		os.Exit(code)
 	}
-}
-
-func version() string {
-	bi, ok := debug.ReadBuildInfo()
-	if !ok {
-		return "unknown"
-	}
-	sb := strings.Builder{}
-	sb.WriteString(bi.Main.Version + "\n")
-	sb.WriteString("go: " + bi.GoVersion)
-	for _, dep := range bi.Deps {
-		sb.WriteString(fmt.Sprintf("\n%s: %s", dep.Path, dep.Version))
-	}
-	return sb.String()
 }
 
 // disableUsage is a helper to disable the Usage output on errors.  This helper

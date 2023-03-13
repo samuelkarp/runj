@@ -5,7 +5,7 @@ all: binaries NOTICE
 binaries: runj runj-entrypoint containerd-shim-runj-v1
 
 runj: bin/runj
-bin/runj: $(SOURCES) go.mod go.sum
+bin/runj: $(SOURCES) go.mod go.sum VERSION REV_OVERRIDE
 	go build -o bin/runj ./cmd/runj
 
 runj-entrypoint: bin/runj-entrypoint
