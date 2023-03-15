@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -31,10 +30,10 @@ func TestNullMount(t *testing.T) {
 	stat, err := os.Stat("/volume/hello.txt")
 	assert.NoError(t, err, "cannot stat hello.txt")
 	assert.Equal(t, fs.FileMode(0), stat.Mode()&fs.ModeType, "unexpected file mode")
-	input, err := ioutil.ReadFile("/volume/hello.txt")
+	input, err := os.ReadFile("/volume/hello.txt")
 	assert.NoError(t, err, "cannot read hello.txt")
 	assert.Equal(t, "input file", string(input), "unexpected file contents")
-	err = ioutil.WriteFile("/volume/world.txt", []byte("output file"), 0644)
+	err = os.WriteFile("/volume/world.txt", []byte("output file"), 0644)
 	assert.NoError(t, err, "cannot write world.txt")
 }
 

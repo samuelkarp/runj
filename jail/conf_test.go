@@ -2,7 +2,7 @@ package jail
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -46,7 +46,7 @@ func TestRenderConfigGolden(t *testing.T) {
 	}}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			expected, err := ioutil.ReadFile(filepath.Join("testdata", fmt.Sprintf("%s.conf", tc.name)))
+			expected, err := os.ReadFile(filepath.Join("testdata", fmt.Sprintf("%s.conf", tc.name)))
 			assert.NoError(t, err, "test data")
 			actual, err := renderConfig(&tc.config)
 			assert.NoError(t, err, "render")

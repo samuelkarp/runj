@@ -2,7 +2,7 @@ package containerd
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -63,7 +63,7 @@ func filterIncompatibleLinuxMounts(bundle string) error {
 	}
 	configJSON := filepath.Join(bundle, "config.json")
 	spec := &specs.Spec{}
-	configBytes, err := ioutil.ReadFile(configJSON)
+	configBytes, err := os.ReadFile(configJSON)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func filterIncompatibleLinuxMounts(bundle string) error {
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(configJSON, out, 0)
+	return os.WriteFile(configJSON, out, 0)
 }
 
 // equalMounts compares two mounts to determine whether they are equal

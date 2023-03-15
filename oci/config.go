@@ -2,7 +2,6 @@ package oci
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -45,7 +44,7 @@ func StoreConfig(id, bundlePath string) error {
 
 // LoadConfig loads the config file stored in the state directory
 func LoadConfig(id string) (*runtimespec.Spec, error) {
-	data, err := ioutil.ReadFile(filepath.Join(state.Dir(id), ConfigFileName))
+	data, err := os.ReadFile(filepath.Join(state.Dir(id), ConfigFileName))
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +54,7 @@ func LoadConfig(id string) (*runtimespec.Spec, error) {
 		return nil, err
 	}
 	if _, err = os.Stat(filepath.Join(state.Dir(id), RunjExtensionFileName)); err == nil {
-		extData, err := ioutil.ReadFile(filepath.Join(state.Dir(id), RunjExtensionFileName))
+		extData, err := os.ReadFile(filepath.Join(state.Dir(id), RunjExtensionFileName))
 		if err != nil {
 			return nil, err
 		}

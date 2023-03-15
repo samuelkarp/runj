@@ -2,7 +2,6 @@ package state
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -39,7 +38,7 @@ type State struct {
 
 // Load reads the state from disk and parses it
 func Load(id string) (*State, error) {
-	d, err := ioutil.ReadFile(filepath.Join(Dir(id), stateFile))
+	d, err := os.ReadFile(filepath.Join(Dir(id), stateFile))
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +63,7 @@ func (s *State) initialize() error {
 
 // Save saves the state to disk
 func (s *State) Save() error {
-	f, err := ioutil.TempFile(Dir(s.ID), "state")
+	f, err := os.CreateTemp(Dir(s.ID), "state")
 	if err != nil {
 		return err
 	}

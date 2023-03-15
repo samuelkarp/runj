@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -66,7 +65,7 @@ the console's pseudoterminal`)
 
 		var process runtimespec.Process
 		if processJSONFlag != nil && *processJSONFlag != "" {
-			data, err := ioutil.ReadFile(*processJSONFlag)
+			data, err := os.ReadFile(*processJSONFlag)
 			if err != nil {
 				return err
 			}

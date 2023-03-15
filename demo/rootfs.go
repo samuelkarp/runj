@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -39,7 +38,7 @@ func DownloadRootfs(arch, version string) (io.ReadCloser, int64, error) {
 
 // MakeImage constructs a single-layer FreeBSD OCI image from a given input tar
 func MakeImage(rootfsFilename string, outputFilename string, arch string) error {
-	tempDir, err := ioutil.TempDir("", "runj-demo-rootfs-")
+	tempDir, err := os.MkdirTemp("", "runj-demo-rootfs-")
 	if err != nil {
 		return err
 	}
@@ -97,7 +96,7 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 		return err
 	}
 	// oci-layout
-	err = ioutil.WriteFile(filepath.Join(imageDir, "oci-layout"), []byte(`{"imageLayoutVersion": "1.0.0"}`), 0644)
+	err = os.WriteFile(filepath.Join(imageDir, "oci-layout"), []byte(`{"imageLayoutVersion": "1.0.0"}`), 0644)
 	if err != nil {
 		return err
 	}
@@ -164,7 +163,7 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 		return err
 	}
 	// image index
-	err = ioutil.WriteFile(filepath.Join(imageDir, "index.json"), indexJSON, 0644)
+	err = os.WriteFile(filepath.Join(imageDir, "index.json"), indexJSON, 0644)
 	if err != nil {
 		return err
 	}
@@ -177,7 +176,7 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 func writeBlob(blobDir string, blob []byte) (digest.Digest, error) {
 	d := digest.FromBytes(blob)
 	fmt.Println("writing blob", string(d))
-	err := ioutil.WriteFile(filepath.Join(blobDir, d.Encoded()), blob, 0644)
+	err := os.WriteFile(filepath.Join(blobDir, d.Encoded()), blob, 0644)
 	if err != nil {
 		return "", err
 	}

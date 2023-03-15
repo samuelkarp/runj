@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -186,7 +185,7 @@ func handleFifoResult(f *os.File) error {
 }
 
 func readFromExecFifo(execFifo io.Reader) error {
-	data, err := ioutil.ReadAll(execFifo)
+	data, err := io.ReadAll(execFifo)
 	if err != nil {
 		return err
 	}

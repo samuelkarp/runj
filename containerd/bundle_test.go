@@ -2,7 +2,6 @@ package containerd
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -80,7 +79,7 @@ func TestFilterIncompatibleLinuxMounts(t *testing.T) {
 	}}
 	for i, tc := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			dir, err := ioutil.TempDir("", "TestFilterIncompatibleLinuxMounts")
+			dir, err := os.MkdirTemp("", "TestFilterIncompatibleLinuxMounts")
 			require.NoError(t, err, "failed to setup test dir")
 			defer func() {
 				err := os.RemoveAll(dir)
@@ -89,14 +88,14 @@ func TestFilterIncompatibleLinuxMounts(t *testing.T) {
 			inBytes, err := json.Marshal(&specs.Spec{Mounts: tc.in})
 			require.NoError(t, err, "failed to marshal input")
 			configJSON := filepath.Join(dir, "config.json")
-			err = ioutil.WriteFile(configJSON, inBytes, 0644)
+			err = os.WriteFile(configJSON, inBytes, 0644)
 			require.NoError(t, err, "failed to write config.json")
 
 			err = filterIncompatibleLinuxMounts(dir)
 			require.NoError(t, err, "failed filter")
 
 			out := &specs.Spec{}
-			outBytes, err := ioutil.ReadFile(configJSON)
+			outBytes, err := os.ReadFile(configJSON)
 			require.NoError(t, err, "failed to read config.json")
 			err = json.Unmarshal(outBytes, out)
 			require.NoError(t, err, "failed to unmarshal config.json")

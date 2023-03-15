@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -90,7 +89,7 @@ func imageCommand() *cobra.Command {
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		disableUsage(cmd)
 		if *inputFilename == "" {
-			tempFile, err := ioutil.TempFile("", "freebsd-image-")
+			tempFile, err := os.CreateTemp("", "freebsd-image-")
 			if err != nil {
 				return err
 			}
@@ -150,7 +149,7 @@ started.`,
 		if err != nil {
 			return err
 		}
-		return ioutil.WriteFile(oci.ConfigFileName, data, 0666)
+		return os.WriteFile(oci.ConfigFileName, data, 0666)
 	}
 	return cmd
 }

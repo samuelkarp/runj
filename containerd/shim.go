@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -784,7 +783,7 @@ func (s *service) Exec(ctx context.Context, req *task.ExecProcessRequest) (*type
 	}
 	aux.SetStdio(pio)
 
-	f, err := ioutil.TempFile("", "runj-process")
+	f, err := os.CreateTemp("", "runj-process")
 	if err != nil {
 		return nil, err
 	}
