@@ -190,6 +190,31 @@ and `ps(1)` installed on your system.  `runj kill` makes use of the `kill(1)`
 command inside the jail's rootfs; if this command does not  exist (or is not
 functional), `runj kill` will not work.
 
+## Building
+
+runj builds largely with standard `go build` invocations, except for the
+`integ-inside` integration test helper which must be statically linked.  A
+`Makefile` is available for use which correctly sets the expected build options.
+
+The following targets are available:
+
+* `all` (or just `make` without additional arguments) - Build all binaries and
+  generate a `NOTICE` file.
+* `NOTICE` - Generate the `NOTICE` file based on included Go dependencies.
+* `install` - Install the runj binaries to the standard filesystem locations.
+* `lint` - Run `golangci-lint` which includes a number of linters.
+* `test` - Run all unit tests.
+* `integ-test` - Run integration tests.  Note that this target must be run as
+  root as it creates jails, creates and configures network interfaces, and
+  manipulates `pf` rules.  It also expects working Internet access to reach
+  `8.8.8.8` for verification of a working network.
+* `clean` - Remove built artifacts.
+
+runj normally expects to be built from a `git` checkout so that appropriate
+revision and module information is built in.  If building runj from an extracted
+tar instead, you may populate the `REV_OVERRIDE` file with an appropriate value
+as a substitute for the normal revision provided from `git`.
+
 ## Contributing
 
 Please see the [contribution policy](CONTRIBUTING.md).
