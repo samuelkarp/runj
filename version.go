@@ -1,7 +1,7 @@
 package runj
 
 import (
-	_ "embed"
+	_ "embed" // use to embed VERSION and REV_OVERRIDE files
 	"fmt"
 	"runtime/debug"
 	"strings"
