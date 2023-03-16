@@ -3,7 +3,7 @@ module go.sbk.wtf/runj
 go 1.16
 
 require (
-	github.com/bxcodec/faker v2.0.1+incompatible // indirect
+	github.com/bxcodec/faker v2.0.1+incompatible
 	github.com/cheggaaa/pb/v3 v3.0.5
 	github.com/containerd/console v1.0.3-0.20210412134321-2298a9c8aead
 	github.com/containerd/containerd v1.5.13
@@ -22,5 +22,5 @@ require (
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	google.golang.org/grpc v1.34.0 // indirect
-	gotest.tools/v3 v3.0.3 // indirect
+	gotest.tools/v3 v3.0.3
 )
