@@ -4,19 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
 	"strconv"
 	"sync"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/sys/reaper"
 	runc "github.com/containerd/go-runc"
-	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // execCreate runs the "create" subcommand for runj
@@ -56,12 +55,12 @@ func execCreate(ctx context.Context, id, bundle string, stdin io.Reader, stdout 
 			con, err := func() (console.Console, error) {
 				con, err := socket.ReceiveMaster()
 				if err != nil {
-					return nil, errors.Wrap(err, "failed to retrieve console master")
+					return nil, fmt.Errorf("failed to retrieve console master: %w", err)
 				}
 				log.G(ctx).WithField("id", id).Warn("Received console master!")
 				err = copyConsole(ctx, con, stdin, stdout, stderr)
 				if err != nil {
-					return nil, errors.Wrap(err, "failed to start console copy")
+					return nil, fmt.Errorf("failed to start console copy: %w", err)
 				}
 				log.G(ctx).WithField("id", id).Warn("Copying console!")
 				return con, nil
@@ -221,12 +220,12 @@ func execExec(ctx context.Context, id, processJSONFilename string, stdin io.Read
 	if socket != nil {
 		con, err = socket.ReceiveMaster()
 		if err != nil {
-			return pid, nil, errors.Wrap(err, "failed to retrieve console master")
+			return pid, nil, fmt.Errorf("failed to retrieve console master: %w", err)
 		}
 		log.G(ctx).WithField("id", id).Warn("Received exec console master!")
 		err = copyConsole(ctx, con, stdin, stdout, stderr)
 		if err != nil {
-			return pid, nil, errors.Wrap(err, "failed to start console copy")
+			return pid, nil, fmt.Errorf("failed to start console copy: %w", err)
 		}
 		log.G(ctx).WithField("id", id).Warn("Copying exec console!")
 	}

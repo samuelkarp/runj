@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -36,7 +37,6 @@ import (
 	ptypes "github.com/gogo/protobuf/types"
 	"github.com/moby/sys/mount"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -220,7 +220,7 @@ func (s *service) StartShim(ctx context.Context, opts shim.StartOpts) (string, e
 			return "", err
 		}
 		if err := shim.RemoveSocket(address); err != nil {
-			return "", errors.Wrap(err, "remove already used socket")
+			return "", fmt.Errorf("remove already used socket: %w", err)
 		}
 		if socket, err = shim.NewSocket(address); err != nil {
 			return "", err
@@ -427,7 +427,7 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 	for _, rm := range mounts {
 		log.G(ctx).WithField("mount", rm).WithField("rootfs", rootfs).Warn("mount")
 		if err := mount.Mount(rm.Source, rootfs, rm.Type, strings.Join(rm.Options, ",")); err != nil {
-			return nil, errors.Wrapf(err, "failed to mount rootfs component %v", rm)
+			return nil, fmt.Errorf("failed to mount rootfs component %v: %w", rm, err)
 		}
 	}
 

@@ -2,6 +2,7 @@ package jail
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,7 +12,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"go.sbk.wtf/runj/state"
@@ -171,7 +171,7 @@ func fifoOpen(path string) (*os.File, error) {
 	flags := os.O_RDONLY
 	f, err := os.OpenFile(path, flags, 0)
 	if err != nil {
-		return nil, errors.Wrap(err, "fifo: open exec fifo for reading")
+		return nil, fmt.Errorf("fifo: open exec fifo for reading: %w", err)
 	}
 	return f, nil
 }
