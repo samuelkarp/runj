@@ -17,8 +17,8 @@ determine the libraries included.  This file is also kept up to date.
 ## github.com/VividCortex/ewma
 
 * Name: github.com/VividCortex/ewma
-* Version: v1.1.1
-* License: [MIT](https://github.com/VividCortex/ewma/blob/v1.1.1/LICENSE)
+* Version: v1.2.0
+* License: [MIT](https://github.com/VividCortex/ewma/blob/v1.2.0/LICENSE)
 
 ```
 The MIT License
@@ -49,8 +49,8 @@ THE SOFTWARE.
 ## github.com/cheggaaa/pb/v3
 
 * Name: github.com/cheggaaa/pb/v3
-* Version: v3.0.5
-* License: [BSD-3-Clause](https://github.com/cheggaaa/pb/blob/v3.0.5/v3/LICENSE)
+* Version: v3.1.2
+* License: [BSD-3-Clause](https://github.com/cheggaaa/pb/blob/v3.1.2/v3/LICENSE)
 
 ```
 Copyright (c) 2012-2015, Sergey Cherepanov
@@ -1525,8 +1525,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## github.com/fatih/color
 
 * Name: github.com/fatih/color
-* Version: v1.7.0
-* License: [MIT](https://github.com/fatih/color/blob/v1.7.0/LICENSE.md)
+* Version: v1.14.1
+* License: [MIT](https://github.com/fatih/color/blob/v1.14.1/LICENSE.md)
 
 ```
 The MIT License (MIT)
@@ -2370,8 +2370,8 @@ Exhibit B - “Incompatible With Secondary Licenses” Notice
 ## github.com/mattn/go-colorable
 
 * Name: github.com/mattn/go-colorable
-* Version: v0.1.2
-* License: [MIT](https://github.com/mattn/go-colorable/blob/v0.1.2/LICENSE)
+* Version: v0.1.13
+* License: [MIT](https://github.com/mattn/go-colorable/blob/v0.1.13/LICENSE)
 
 ```
 The MIT License (MIT)
@@ -2402,8 +2402,8 @@ SOFTWARE.
 ## github.com/mattn/go-isatty
 
 * Name: github.com/mattn/go-isatty
-* Version: v0.0.12
-* License: [MIT](https://github.com/mattn/go-isatty/blob/v0.0.12/LICENSE)
+* Version: v0.0.17
+* License: [MIT](https://github.com/mattn/go-isatty/blob/v0.0.17/LICENSE)
 
 ```
 Copyright (c) Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
@@ -2422,8 +2422,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ## github.com/mattn/go-runewidth
 
 * Name: github.com/mattn/go-runewidth
-* Version: v0.0.7
-* License: [MIT](https://github.com/mattn/go-runewidth/blob/v0.0.7/LICENSE)
+* Version: v0.0.12
+* License: [MIT](https://github.com/mattn/go-runewidth/blob/v0.0.12/LICENSE)
 
 ```
 The MIT License (MIT)
@@ -3518,6 +3518,38 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
 =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
+## github.com/rivo/uniseg
+
+* Name: github.com/rivo/uniseg
+* Version: v0.2.0
+* License: [MIT](https://github.com/rivo/uniseg/blob/v0.2.0/LICENSE.txt)
+
+```
+MIT License
+
+Copyright (c) 2019 Oliver Kuederle
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+=^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
 ## github.com/sirupsen/logrus
 
 * Name: github.com/sirupsen/logrus
@@ -4054,8 +4086,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## golang.org/x/sys
 
 * Name: golang.org/x/sys
-* Version: v0.0.0-20220722155257-8c9f86f7a55f
-* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sys/+/8c9f86f7:LICENSE)
+* Version: v0.5.0
+* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sys/+/v0.5.0:LICENSE)
 
 ```
 Copyright (c) 2009 The Go Authors. All rights reserved.
