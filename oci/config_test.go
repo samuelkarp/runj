@@ -3,7 +3,7 @@ package oci
 import (
 	"testing"
 
-	"github.com/bxcodec/faker"
+	"github.com/go-faker/faker/v4"
 
 	"go.sbk.wtf/runj/runtimespec"
 	"gotest.tools/v3/assert"

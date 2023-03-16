@@ -4048,8 +4048,8 @@ file for a list of direct dependencies and go.sum for transitive dependencies
 ## golang.org/x/sync/errgroup
 
 * Name: golang.org/x/sync/errgroup
-* Version: v0.0.0-20210220032951-036812b2e83c
-* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sync/+/036812b2:LICENSE)
+* Version: v0.1.0
+* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sync/+/v0.1.0:LICENSE)
 
 ```
 Copyright (c) 2009 The Go Authors. All rights reserved.
