@@ -15,8 +15,7 @@ type stdio struct {
 	stderr io.ReadWriteCloser
 }
 
-func setupIO(ctx context.Context, stdin, stdout, stderr string) (stdio, error) {
-	io := stdio{}
+func setupIO(ctx context.Context, stdin, stdout, stderr string) (io stdio, _ error) {
 	if _, err := os.Stat(stdin); err == nil {
 		io.stdin, err = fifo.OpenFifo(ctx, stdin, syscall.O_RDONLY|syscall.O_NONBLOCK, 0)
 		if err != nil {
