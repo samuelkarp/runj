@@ -37,10 +37,19 @@ func downloadRootfsCommand() *cobra.Command {
 		Short: "download a FreeBSD rootfs",
 		Long:  "Download the base.txz for a given FreeBSD release and architecture",
 	}
-	arch := dl.Flags().StringP("architecture", "a", "", "CPU architecture, like amd64")
+	machine := dl.Flags().StringP("machine", "m", "", "Hardware Platform, like arm64")
+	arch := dl.Flags().StringP("architecture", "a", "", "CPU architecture, like aarch64")
 	version := dl.Flags().StringP("version", "v", "", "FreeBSD version, like 12-RELEASE")
 	outputFilename := dl.Flags().StringP("output", "o", "rootfs.txz", "Output filename")
 	dl.RunE = func(cmd *cobra.Command, args []string) error {
+		if *machine == "" {
+			var err error
+			*machine, err = demo.FreeBSDMachine(dl.Context())
+			if err != nil {
+				return err
+			}
+			fmt.Println("Found machine: ", *machine)
+		}
 		if *arch == "" {
 			var err error
 			*arch, err = demo.FreeBSDArch(dl.Context())
@@ -62,27 +71,28 @@ func downloadRootfsCommand() *cobra.Command {
 			return err
 		}
 		defer f.Close()
-		return downloadImage(*arch, *version, f)
+		return downloadImage(*machine, *arch, *version, f)
 	}
 	return dl
 }
 
 func imageCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "oci-image [--input | --architecture <arch> --version <version>]",
+		Use:   "oci-image [--input | --machine <machine> --architecture <arch> --version <version>]",
 		Short: "Create an OCI image",
 		Long:  "Create an OCI image, optionally downloading if a rootfs file is not already present",
 	}
-	arch := cmd.Flags().StringP("architecture", "a", "", "CPU architecture, like amd64")
+	machine := cmd.Flags().StringP("machine", "m", "", "Hardware Platform, like arm64")
+	arch := cmd.Flags().StringP("architecture", "a", "", "CPU architecture, like aarch64")
 	version := cmd.Flags().StringP("version", "v", "", "FreeBSD version, like 12-RELEASE")
 	inputFilename := cmd.Flags().StringP("input", "i", "", "Input rootfs (txz format)")
 	outputFilename := cmd.Flags().StringP("output", "o", "image.tar", "Output filename")
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		if (*arch == "" || *version == "") && *inputFilename == "" {
-			return errors.New("missing required arguments; either provide --input or (--architecture and --version)")
+		if (*machine == "" || *arch == "" || *version == "") && *inputFilename == "" {
+			return errors.New("missing required arguments; either provide --input or (--machine, --architecture and --version)")
 		}
-		if *inputFilename != "" && (*arch != "" || *version != "") {
-			return errors.New("cannot provide --input and (--architecture or --version)")
+		if *inputFilename != "" && (*machine != "" || *arch != "" || *version != "") {
+			return errors.New("cannot provide --input and (--machine or --architecture or --version)")
 		}
 		return nil
 	}
@@ -97,7 +107,7 @@ func imageCommand() *cobra.Command {
 				tempFile.Close()
 				os.Remove(tempFile.Name())
 			}()
-			err = downloadImage(*arch, *version, tempFile)
+			err = downloadImage(*machine, *arch, *version, tempFile)
 			if err != nil {
 				return err
 			}
@@ -109,9 +119,9 @@ func imageCommand() *cobra.Command {
 	return cmd
 }
 
-func downloadImage(arch, version string, f *os.File) error {
-	fmt.Printf("Downloading image for %s %s into %s\n", arch, version, f.Name())
-	rootfs, rootLen, err := demo.DownloadRootfs(arch, version)
+func downloadImage(machine, arch, version string, f *os.File) error {
+	fmt.Printf("Downloading image for %s/%s %s into %s\n", machine, arch, version, f.Name())
+	rootfs, rootLen, err := demo.DownloadRootfs(machine, arch, version)
 	if err != nil {
 		return err
 	}

@@ -68,6 +68,12 @@ func prepareRootfs() error {
 		return err
 	}
 
+	machine, err := demo.FreeBSDMachine(context.Background())
+	if err != nil {
+		return err
+	}
+	fmt.Println("Found machine: ", machine)
+
 	arch, err := demo.FreeBSDArch(context.Background())
 	if err != nil {
 		return err
@@ -87,7 +93,7 @@ func prepareRootfs() error {
 		if err != nil {
 			return err
 		}
-		err = downloadImage(arch, version, f)
+		err = downloadImage(machine, arch, version, f)
 		f.Close()
 		if err != nil {
 			return err
@@ -100,9 +106,9 @@ func prepareRootfs() error {
 	return err
 }
 
-func downloadImage(arch, version string, f *os.File) error {
+func downloadImage(machine, arch, version string, f *os.File) error {
 	fmt.Printf("Downloading image for %s %s into %s\n", arch, version, f.Name())
-	rootfs, rootLen, err := demo.DownloadRootfs(arch, version)
+	rootfs, rootLen, err := demo.DownloadRootfs(machine, arch, version)
 	if err != nil {
 		return err
 	}

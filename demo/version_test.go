@@ -22,3 +22,10 @@ func TestFreeBSDArch(t *testing.T) {
 	t.Log(arch)
 	assert.Equal(t, strings.TrimSpace(arch), arch)
 }
+
+func TestFreeBSDMachine(t *testing.T) {
+	machine, err := FreeBSDMachine(context.Background())
+	require.NoError(t, err)
+	t.Log(machine)
+	assert.Equal(t, strings.TrimSpace(machine), machine)
+}

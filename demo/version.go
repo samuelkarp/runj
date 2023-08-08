@@ -26,3 +26,10 @@ func FreeBSDArch(ctx context.Context) (string, error) {
 	arch, err := cmd.Output()
 	return strings.TrimSpace(string(arch)), err
 }
+
+// FreeBSDMachine returns the current hardware platform as reported by uname(1)
+func FreeBSDMachine(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "uname", "-m")
+	arch, err := cmd.Output()
+	return strings.TrimSpace(string(arch)), err
+}

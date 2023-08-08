@@ -21,12 +21,12 @@ import (
 )
 
 const (
-	freeBSDDownload = "https://download.freebsd.org/ftp/releases/%s/%s/base.txz"
+	freeBSDDownload = "https://download.freebsd.org/ftp/releases/%s/%s/%s/base.txz"
 )
 
 // DownloadRootfs downloads a FreeBSD root filesystem
-func DownloadRootfs(arch, version string) (io.ReadCloser, int64, error) {
-	req, err := http.Get(fmt.Sprintf(freeBSDDownload, arch, version))
+func DownloadRootfs(machine, arch, version string) (io.ReadCloser, int64, error) {
+	req, err := http.Get(fmt.Sprintf(freeBSDDownload, machine, arch, version))
 	if err != nil {
 		return nil, 0, err
 	}
