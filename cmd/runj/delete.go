@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"go.sbk.wtf/runj/hook"
 	"go.sbk.wtf/runj/jail"
 	"go.sbk.wtf/runj/oci"
 	"go.sbk.wtf/runj/runtimespec"
@@ -32,6 +33,10 @@ func deleteCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			disableUsage(cmd)
 			id := args[0]
+			s, err := state.Load(id)
+			if err != nil {
+				return err
+			}
 			running, err := jail.IsRunning(cmd.Context(), id, 0)
 			if err != nil {
 				return fmt.Errorf("delete: failed to determine if jail is running: %w", err)
@@ -63,7 +68,21 @@ func deleteCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return state.Remove(id)
+			err = state.Remove(id)
+			if err != nil {
+				return err
+			}
+
+			for _, h := range ociConfig.Hooks.Poststop {
+				output := s.Output()
+				output.Annotations = ociConfig.Annotations
+				err = hook.Run(&output, &h)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
 		},
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"go.sbk.wtf/runj/runtimespec"
 )
 
 const stateFile = "state.json"
@@ -34,6 +36,39 @@ type State struct {
 	Bundle string
 	// PID is the primary process ID
 	PID int
+}
+
+// Output is the expected output format for the state command
+/*
+{
+    "ociVersion": "0.2.0",
+    "id": "oci-container1",
+    "status": "running",
+    "pid": 4422,
+    "bundle": "/containers/redis",
+    "annotations": {
+        "myKey": "myValue"
+    }
+}
+*/
+type Output struct {
+	OCIVersion  string            `json:"ociVersion"`
+	ID          string            `json:"id"`
+	Status      string            `json:"status"`
+	PID         int               `json:"pid,omitempty"`
+	Bundle      string            `json:"bundle"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+// Output converts the state to the "Output" format expected by hooks
+func (s *State) Output() Output {
+	return Output{
+		OCIVersion: runtimespec.Version,
+		ID:         s.ID,
+		Status:     string(s.Status),
+		PID:        s.PID,
+		Bundle:     s.Bundle,
+	}
 }
 
 // Load reads the state from disk and parses it

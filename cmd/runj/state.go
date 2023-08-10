@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"go.sbk.wtf/runj/jail"
-	"go.sbk.wtf/runj/runtimespec"
 	"go.sbk.wtf/runj/state"
 
 	"github.com/spf13/cobra"
@@ -77,14 +76,7 @@ func stateCommand() *cobra.Command {
 					}
 				}
 			}
-			output := StateOutput{
-				OCIVersion: runtimespec.Version,
-				ID:         id,
-				Status:     string(s.Status),
-				PID:        s.PID,
-				Bundle:     s.Bundle,
-			}
-			b, err := json.MarshalIndent(output, "", "  ")
+			b, err := json.MarshalIndent(s.Output(), "", "  ")
 			if err != nil {
 				return err
 			}
@@ -92,26 +84,4 @@ func stateCommand() *cobra.Command {
 			return nil
 		},
 	}
-}
-
-// StateOutput is the expected output format for the state command
-/*
-{
-    "ociVersion": "0.2.0",
-    "id": "oci-container1",
-    "status": "running",
-    "pid": 4422,
-    "bundle": "/containers/redis",
-    "annotations": {
-        "myKey": "myValue"
-    }
-}
-*/
-type StateOutput struct {
-	OCIVersion  string            `json:"ociVersion"`
-	ID          string            `json:"id"`
-	Status      string            `json:"status"`
-	PID         int               `json:"pid,omitempty"`
-	Bundle      string            `json:"bundle"`
-	Annotations map[string]string `json:"annotations,omitempty"`
 }

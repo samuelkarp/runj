@@ -36,14 +36,11 @@ type Spec struct {
 	// Mounts configures additional mounts (on top of Root).
 	Mounts []Mount `json:"mounts,omitempty"`
 
-	// Modification by Samuel Karp
-	/*
-			// Hooks configures callbacks for container lifecycle events.
-			Hooks *Hooks `json:"hooks,omitempty" platform:"linux,solaris"`
-			// Annotations contains arbitrary metadata for the container.
-			Annotations map[string]string `json:"annotations,omitempty"`
-		// End of modification
-	*/
+	// Hooks configures callbacks for container lifecycle events.
+	Hooks *Hooks `json:"hooks,omitempty"`
+
+	// Annotations contains arbitrary metadata for the container.
+	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// Modification by Samuel Karp
 	FreeBSD *FreeBSD `json:"freebsd,omitempty"`
@@ -143,6 +140,45 @@ type Mount struct {
 	Options []string `json:"options,omitempty"`
 }
 
+// Hook specifies a command that is run at a particular event in the lifecycle of a container
+type Hook struct {
+	Path    string   `json:"path"`
+	Args    []string `json:"args,omitempty"`
+	Env     []string `json:"env,omitempty"`
+	Timeout *int     `json:"timeout,omitempty"`
+}
+
+// Hooks specifies a command that is run in the container at a particular event in the lifecycle of a container
+// Hooks for container setup and teardown
+type Hooks struct {
+	// Modification by Artem Khramov
+	/*
+	   // Prestart is Deprecated. Prestart is a list of hooks to be run before the container process is executed.
+	   // It is called in the Runtime Namespace
+	   Prestart []Hook `json:"prestart,omitempty"`
+	*/
+	// End of modification
+	// CreateRuntime is a list of hooks to be run after the container has been created but before pivot_root or any equivalent operation has been called
+	// It is called in the Runtime Namespace
+	CreateRuntime []Hook `json:"createRuntime,omitempty"`
+	// Modification by Artem Khramov
+	/*
+	   // CreateContainer is a list of hooks to be run after the container has been created but before pivot_root or any equivalent operation has been called
+	   // It is called in the Container Namespace
+	   CreateContainer []Hook `json:"createContainer,omitempty"`
+	   // StartContainer is a list of hooks to be run after the start operation is called but before the container process is started
+	   // It is called in the Container Namespace
+	   StartContainer []Hook `json:"startContainer,omitempty"`
+	   // Poststart is a list of hooks to be run after the container process is started.
+	   // It is called in the Runtime Namespace
+	   Poststart []Hook `json:"poststart,omitempty"`
+	*/
+	// End of modification
+	// Poststop is a list of hooks to be run after the container process exits.
+	// It is called in the Runtime Namespace
+	Poststop []Hook `json:"poststop,omitempty"`
+}
+
 // Modification by Samuel Karp
 
 // FreeBSD specifies FreeBSD-specific configuration options
@@ -202,8 +238,6 @@ type FreeBSDVNetMode string
 // Modification by Samuel Karp
 /*
 Omitted type definitions for:
-Hook
-Hooks
 Linux
 LinuxNamespace
 LinuxNamespaceType

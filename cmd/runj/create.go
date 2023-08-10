@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"go.sbk.wtf/runj/hook"
 	"go.sbk.wtf/runj/jail"
 	"go.sbk.wtf/runj/oci"
 	"go.sbk.wtf/runj/runtimespec"
@@ -209,6 +210,15 @@ written`)
 		if pidFile != "" {
 			pidValue := strconv.Itoa(s.PID)
 			err = os.WriteFile(pidFile, []byte(pidValue), 0o666)
+			if err != nil {
+				return err
+			}
+		}
+
+		for _, h := range ociConfig.Hooks.CreateRuntime {
+			output := s.Output()
+			output.Annotations = ociConfig.Annotations
+			err = hook.Run(&output, &h)
 			if err != nil {
 				return err
 			}
