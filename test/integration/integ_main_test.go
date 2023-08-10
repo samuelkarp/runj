@@ -107,7 +107,7 @@ func prepareRootfs() error {
 }
 
 func downloadImage(machine, arch, version string, f *os.File) error {
-	fmt.Printf("Downloading image for %s %s into %s\n", arch, version, f.Name())
+	fmt.Printf("Downloading image for %s/%s %s into %s\n", machine, arch, version, f.Name())
 	rootfs, rootLen, err := demo.DownloadRootfs(machine, arch, version)
 	if err != nil {
 		return err
