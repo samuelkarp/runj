@@ -161,9 +161,9 @@ func setupFullExitingJail(t *testing.T) runtimespec.Spec {
 
 func assertJailPass(t *testing.T, stdout, stderr []byte) {
 	t.Helper()
-	assert.True(t, len(stdout) > 1, "stdout should have at least two lines")
 	assert.Equal(t, []byte{}, stderr, "stderr should be empty")
 	lines := strings.Split(string(stdout), "\n")
+	require.GreaterOrEqual(t, len(lines), 2, "stdout should have at least two lines")
 	assert.Equal(t, "PASS", lines[len(lines)-2], "second to last line of output should be PASS")
 }
 
