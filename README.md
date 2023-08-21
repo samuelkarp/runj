@@ -29,6 +29,9 @@ runj currently supports the following parts of the OCI runtime spec:
   - Process terminal
   - Hostname
   - Mounts
+  - Hooks
+    - CreateRuntime
+    - Poststop
 
 runj also supports the following experimental FreeBSD-specific extensions to the
 OCI runtime spec:
