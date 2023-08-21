@@ -73,12 +73,15 @@ func deleteCommand() *cobra.Command {
 				return err
 			}
 
-			for _, h := range ociConfig.Hooks.Poststop {
-				output := s.Output()
-				output.Annotations = ociConfig.Annotations
-				err = hook.Run(&output, &h)
-				if err != nil {
-					return err
+			if ociConfig.Hooks != nil {
+				for _, h := range ociConfig.Hooks.Poststop {
+					output := s.Output()
+					output.Annotations = ociConfig.Annotations
+					err = hook.Run(&output, &h)
+					if err != nil {
+						return err
+					}
+
 				}
 			}
 

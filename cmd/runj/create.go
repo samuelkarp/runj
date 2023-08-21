@@ -215,12 +215,14 @@ written`)
 			}
 		}
 
-		for _, h := range ociConfig.Hooks.CreateRuntime {
-			output := s.Output()
-			output.Annotations = ociConfig.Annotations
-			err = hook.Run(&output, &h)
-			if err != nil {
-				return err
+		if ociConfig.Hooks != nil {
+			for _, h := range ociConfig.Hooks.CreateRuntime {
+				output := s.Output()
+				output.Annotations = ociConfig.Annotations
+				err = hook.Run(&output, &h)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
