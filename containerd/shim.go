@@ -474,6 +474,10 @@ func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*tas
 
 func setupRunjExtension(bundle string, options *ptypes.Any) error {
 	if options == nil {
+		_, err := os.Stat(oci.ImplicitRunjExtensionPath)
+		if (!errors.Is(err, os.ErrNotExist)) {
+			return util.CopyFile(oci.ImplicitRunjExtensionPath, filepath.Join(bundle, oci.RunjExtensionFileName), 0600)
+		}
 		return nil
 	}
 	v, err := typeurl.UnmarshalAny(options)

@@ -20,6 +20,9 @@ const (
 	// unaware of FreeBSD and runj to be augmented by an additional program
 	// that specifies additional settings.
 	RunjExtensionFileName = "runj.ext.json"
+
+	// New implicit path for runj.ext.json
+	ImplicitRunjExtensionPath = "/opt/etc/runj.ext.json"
 )
 
 // StoreConfig copies the config file provided in the input bundle to the state
