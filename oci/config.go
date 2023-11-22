@@ -21,7 +21,7 @@ const (
 	// that specifies additional settings.
 	RunjExtensionFileName = "runj.ext.json"
 
-	// New implicit path for runj.ext.json
+	// ImplicitRunjExtensionPath is the implicit path for runj.ext.json
 	ImplicitRunjExtensionPath = "/opt/etc/runj.ext.json"
 )
 
