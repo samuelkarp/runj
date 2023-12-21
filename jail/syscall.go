@@ -16,6 +16,11 @@ func attach(jid ID) error {
 	return jidSyscall(syscall.SYS_JAIL_ATTACH, jid)
 }
 
+// remove destroys the jail, killing all processes within it
+func remove(jid ID) error {
+	return jidSyscall(syscall.SYS_JAIL_REMOVE, jid)
+}
+
 // find queries the OS for a jail with the specified name or JID
 func find(identifier string) (ID, error) {
 	params := &findIovec{}

@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	"go.sbk.wtf/runj/hook"
 	"go.sbk.wtf/runj/jail"
@@ -32,8 +31,14 @@ func deleteCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			disableUsage(cmd)
+			var (
+				err       error
+				s         *state.State
+				j         jail.Jail
+				ociConfig *runtimespec.Spec
+			)
 			id := args[0]
-			s, err := state.Load(id)
+			s, err = state.Load(id)
 			if err != nil {
 				return err
 			}
@@ -42,21 +47,20 @@ func deleteCommand() *cobra.Command {
 				return fmt.Errorf("delete: failed to determine if jail is running: %w", err)
 			}
 			if running {
-				return fmt.Errorf("delete: jail %s is not stopped", id)
+				return fmt.Errorf("delete: jail %q is not stopped", id)
 			}
 			err = jail.CleanupEntrypoint(id)
 			if err != nil {
 				return fmt.Errorf("delete: failed to find entrypoint process: %w", err)
 			}
-			confPath := jail.ConfPath(id)
-			if _, err := os.Stat(confPath); err != nil {
-				return errors.New("invalid jail id provided")
+			j, err = jail.FromName(id)
+			if err != nil {
+				return fmt.Errorf("delete: failed to find jail %q: %w", id, err)
 			}
-			err = jail.DestroyJail(cmd.Context(), confPath, id)
+			err = j.Remove()
 			if err != nil {
 				return err
 			}
-			var ociConfig *runtimespec.Spec
 			ociConfig, err = oci.LoadConfig(id)
 			if err != nil {
 				return err
