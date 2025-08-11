@@ -8,7 +8,7 @@ require (
 	github.com/cheggaaa/pb/v3 v3.1.7
 	github.com/containerd/console v1.0.5
 	github.com/containerd/containerd v1.6.26
-	github.com/containerd/fifo v1.0.0
+	github.com/containerd/fifo v1.1.0
 	github.com/containerd/go-runc v1.0.0
 	github.com/containerd/typeurl v1.0.2
 	github.com/go-faker/faker/v4 v4.6.1
