@@ -106,8 +106,10 @@ func MakeImage(rootfsFilename string, outputFilename string, arch string) error 
 		arch = runtime.GOARCH
 	}
 	config := v1.Image{
-		Architecture: arch,
-		OS:           freebsd,
+		Platform: v1.Platform{
+			Architecture: arch,
+			OS:           freebsd,
+		},
 		RootFS: v1.RootFS{
 			Type:    "layers",
 			DiffIDs: []digest.Digest{layerDigest},
