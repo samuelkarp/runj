@@ -1,6 +1,8 @@
 module go.sbk.wtf/runj
 
-go 1.20
+go 1.23.0
+
+toolchain go1.24.2
 
 require (
 	github.com/cheggaaa/pb/v3 v3.1.7
@@ -9,7 +11,7 @@ require (
 	github.com/containerd/fifo v1.0.0
 	github.com/containerd/go-runc v1.0.0
 	github.com/containerd/typeurl v1.0.2
-	github.com/go-faker/faker/v4 v4.1.0
+	github.com/go-faker/faker/v4 v4.6.1
 	github.com/gogo/protobuf v1.3.2
 	github.com/moby/sys/mount v0.3.3
 	github.com/opencontainers/go-digest v1.0.0
@@ -47,8 +49,8 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/sync v0.3.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
 	google.golang.org/grpc v1.58.3 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
