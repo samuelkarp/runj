@@ -211,8 +211,8 @@ type FreeBSDIPv4Mode string
 
 const (
 	FreeBSDIPv4ModeNew     FreeBSDIPv4Mode = "new"
-	FreeBSDIPv4ModeInherit                 = "inherit"
-	FreeBSDIPv4ModeDisable                 = "disable"
+	FreeBSDIPv4ModeInherit FreeBSDIPv4Mode = "inherit"
+	FreeBSDIPv4ModeDisable FreeBSDIPv4Mode = "disable"
 )
 
 // FreeBSDVNet encapsulates vnet-specific jail options
@@ -228,7 +228,7 @@ type FreeBSDVNet struct {
 
 const (
 	FreeBSDVNetModeNew     FreeBSDVNetMode = "new"
-	FreeBSDVNetModeInherit                 = "inherit"
+	FreeBSDVNetModeInherit FreeBSDVNetMode = "inherit"
 )
 
 type FreeBSDVNetMode string

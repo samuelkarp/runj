@@ -2,8 +2,6 @@ module go.sbk.wtf/runj
 
 go 1.23.0
 
-toolchain go1.24.2
-
 require (
 	github.com/cheggaaa/pb/v3 v3.1.7
 	github.com/containerd/console v1.0.5

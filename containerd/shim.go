@@ -28,12 +28,10 @@ import (
 	runtimeoptions "github.com/containerd/containerd/pkg/runtimeoptions/v1"
 	"github.com/containerd/containerd/runtime"
 	"github.com/containerd/containerd/runtime/v2/shim"
-	"github.com/containerd/containerd/runtime/v2/task"
 	taskAPI "github.com/containerd/containerd/runtime/v2/task"
 	"github.com/containerd/containerd/sys/reaper"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
-	"github.com/gogo/protobuf/types"
 	ptypes "github.com/gogo/protobuf/types"
 	"github.com/moby/sys/mount"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -286,7 +284,7 @@ func newReexec(ctx context.Context, id, containerdAddress string) (*exec.Cmd, er
 // Shutdown is called to allow the shim to exit.  Shutdown deletes resources
 // like the socket address and must cause the shim.Publisher to be closed so the
 // process exits.
-func (s *service) Shutdown(ctx context.Context, req *task.ShutdownRequest) (*types.Empty, error) {
+func (s *service) Shutdown(ctx context.Context, req *taskAPI.ShutdownRequest) (*ptypes.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("SHUTDOWN")
 	s.cancel()
 	// shim.Publisher is closed after all events in s.events are processed
@@ -303,7 +301,7 @@ func (s *service) Shutdown(ctx context.Context, req *task.ShutdownRequest) (*typ
 // importantly _not_ remove the shim's socket as that should happen in Shutdown.
 // Cleanup is a binary call that cleans up any resources used by the shim when
 // the service crashes; it is a fallback of Delete.
-func (s *service) Cleanup(ctx context.Context) (*task.DeleteResponse, error) {
+func (s *service) Cleanup(ctx context.Context) (*taskAPI.DeleteResponse, error) {
 	opts, ok := ctx.Value(shim.OptsKey{}).(shim.Opts)
 	if !ok {
 		return nil, errors.New("failed to read opts")
@@ -314,7 +312,7 @@ func (s *service) Cleanup(ctx context.Context) (*task.DeleteResponse, error) {
 // Delete a process or container.  When deleting a container, Delete should call
 // runj delete but importantly _not_ remove the shim's socket as that should
 // happen in Shutdown.
-func (s *service) Delete(ctx context.Context, req *task.DeleteRequest) (*task.DeleteResponse, error) {
+func (s *service) Delete(ctx context.Context, req *taskAPI.DeleteRequest) (*taskAPI.DeleteResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("DELETE")
 	if req.ID != s.id {
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
@@ -333,7 +331,7 @@ func (s *service) Delete(ctx context.Context, req *task.DeleteRequest) (*task.De
 }
 
 // delete performs work that is common between Cleanup and Delete.
-func (s *service) delete(ctx context.Context, bundlePath string) (*task.DeleteResponse, error) {
+func (s *service) delete(ctx context.Context, bundlePath string) (*taskAPI.DeleteResponse, error) {
 	if err := execKill(ctx, s.id, "KILL", true, 0); err != nil {
 		log.G(ctx).WithError(err).Error("failed to run runj kill --all")
 		return nil, err
@@ -351,7 +349,7 @@ func (s *service) delete(ctx context.Context, bundlePath string) (*task.DeleteRe
 	}, nil
 }
 
-func (s *service) deleteAux(ctx context.Context, id string) (*task.DeleteResponse, error) {
+func (s *service) deleteAux(ctx context.Context, id string) (*taskAPI.DeleteResponse, error) {
 	log.G(ctx).WithField("execID", id).Warn("Delete Exec!")
 	aux := s.getAuxiliary(id)
 	if aux == nil {
@@ -379,7 +377,7 @@ func (s *service) deleteAux(ctx context.Context, id string) (*task.DeleteRespons
 }
 
 // Create sets up the OCI bundle and invokes runj create
-func (s *service) Create(ctx context.Context, req *task.CreateTaskRequest) (*task.CreateTaskResponse, error) {
+func (s *service) Create(ctx context.Context, req *taskAPI.CreateTaskRequest) (*taskAPI.CreateTaskResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("CREATE")
 	if req.ID != s.id {
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
@@ -557,7 +555,7 @@ func (s *service) sendL(evt interface{}) {
 // State returns the state of the container.  The returned state is a composite
 // of the state information from the underlying container and information that
 // was recorded by this shim (exit information from the primary process).
-func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.StateResponse, error) {
+func (s *service) State(ctx context.Context, req *taskAPI.StateRequest) (*taskAPI.StateResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("STATE")
 	if req.ExecID != "" {
 		return s.stateAux(ctx, req.ExecID)
@@ -571,7 +569,7 @@ func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.Stat
 	if err != nil {
 		return nil, err
 	}
-	resp := &task.StateResponse{
+	resp := &taskAPI.StateResponse{
 		ID:     s.id,
 		Bundle: bundlePath,
 		Pid:    uint32(ociState.PID),
@@ -586,14 +584,14 @@ func (s *service) State(ctx context.Context, req *task.StateRequest) (*task.Stat
 	return resp, nil
 }
 
-func (s *service) stateAux(ctx context.Context, id string) (*task.StateResponse, error) {
+func (s *service) stateAux(ctx context.Context, id string) (*taskAPI.StateResponse, error) {
 	log.G(ctx).WithField("execID", id).Error("Exec state!")
 	aux := s.getAuxiliary(id)
 	if aux == nil {
 		return nil, errdefs.ErrNotFound
 	}
 	exit := aux.GetExited()
-	return &task.StateResponse{
+	return &taskAPI.StateResponse{
 		ID:         s.id,
 		ExecID:     id,
 		Pid:        uint32(aux.GetPID()),
@@ -622,7 +620,7 @@ func runjStatusToContainerdStatus(in string) tasktypes.Status {
 // with Create) or a secondary process (previously specified with Exec).  When
 // used for the primary process, Start invokes "runj start".  When used for a
 // secondary process, Start invokes "runj exec".
-func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.StartResponse, error) {
+func (s *service) Start(ctx context.Context, req *taskAPI.StartRequest) (*taskAPI.StartResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("START")
 	if req.ID != s.id {
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
@@ -634,7 +632,7 @@ func (s *service) Start(ctx context.Context, req *task.StartRequest) (*task.Star
 	return s.startAux(ctx, s.id, req.ExecID)
 }
 
-func (s *service) startPrimary(ctx context.Context, id string) (*task.StartResponse, error) {
+func (s *service) startPrimary(ctx context.Context, id string) (*taskAPI.StartResponse, error) {
 	ociState, err := execState(ctx, id)
 	if err != nil {
 		return nil, err
@@ -653,12 +651,12 @@ func (s *service) startPrimary(ctx context.Context, id string) (*task.StartRespo
 		ContainerID: s.id,
 		Pid:         uint32(ociState.PID),
 	})
-	return &task.StartResponse{
+	return &taskAPI.StartResponse{
 		Pid: uint32(ociState.PID),
 	}, nil
 }
 
-func (s *service) startAux(ctx context.Context, id, execID string) (*task.StartResponse, error) {
+func (s *service) startAux(ctx context.Context, id, execID string) (*taskAPI.StartResponse, error) {
 	proc := s.getAuxiliary(execID)
 	if proc == nil {
 		return nil, errdefs.ErrNotFound
@@ -689,33 +687,33 @@ func (s *service) startAux(ctx context.Context, id, execID string) (*task.StartR
 		ExecID:      execID,
 		Pid:         uint32(pid),
 	})
-	return &task.StartResponse{
+	return &taskAPI.StartResponse{
 		Pid: uint32(pid),
 	}, nil
 }
 
-func (s *service) Pids(ctx context.Context, req *task.PidsRequest) (*task.PidsResponse, error) {
+func (s *service) Pids(ctx context.Context, req *taskAPI.PidsRequest) (*taskAPI.PidsResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("PIDS")
 	return nil, errdefs.ErrNotImplemented
 }
 
-func (s *service) Pause(ctx context.Context, req *task.PauseRequest) (*types.Empty, error) {
+func (s *service) Pause(ctx context.Context, req *taskAPI.PauseRequest) (*ptypes.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("PAUSE")
 	return nil, errdefs.ErrNotImplemented
 }
 
-func (s *service) Resume(ctx context.Context, req *task.ResumeRequest) (*types.Empty, error) {
+func (s *service) Resume(ctx context.Context, req *taskAPI.ResumeRequest) (*ptypes.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("RESUME")
 	return nil, errdefs.ErrNotImplemented
 }
 
-func (s *service) Checkpoint(ctx context.Context, req *task.CheckpointTaskRequest) (*types.Empty, error) {
+func (s *service) Checkpoint(ctx context.Context, req *taskAPI.CheckpointTaskRequest) (*ptypes.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("CHECKPOINT")
 	return nil, errdefs.ErrNotImplemented
 }
 
 // Kill sends signals to processes inside a container
-func (s *service) Kill(ctx context.Context, req *task.KillRequest) (*types.Empty, error) {
+func (s *service) Kill(ctx context.Context, req *taskAPI.KillRequest) (*ptypes.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("KILL")
 	pid := 0
 	if req.ExecID != "" {
@@ -746,7 +744,7 @@ func (s *service) Kill(ctx context.Context, req *task.KillRequest) (*types.Empty
 // Exec sets up a new secondary process that should be run in the container, but
 // does not start the process.  After calling Exec to set up the process
 // (including its args, environment, and IO), call Start to start it.
-func (s *service) Exec(ctx context.Context, req *task.ExecProcessRequest) (*types.Empty, error) {
+func (s *service) Exec(ctx context.Context, req *taskAPI.ExecProcessRequest) (*ptypes.Empty, error) {
 	l := log.G(ctx).WithField("id", req.ID).WithField("execID", req.ExecID)
 	l.WithField("req", req).Warn("EXEC")
 	specAny, err := typeurl.UnmarshalAny(req.Spec)
@@ -801,7 +799,7 @@ func (s *service) Exec(ctx context.Context, req *task.ExecProcessRequest) (*type
 	return empty, nil
 }
 
-func (s *service) ResizePty(ctx context.Context, req *task.ResizePtyRequest) (*types.Empty, error) {
+func (s *service) ResizePty(ctx context.Context, req *taskAPI.ResizePtyRequest) (*ptypes.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("RESIZEPTY")
 	if req.ID != s.id {
 		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
@@ -829,12 +827,12 @@ func (s *service) ResizePty(ctx context.Context, req *task.ResizePtyRequest) (*t
 	return empty, nil
 }
 
-func (s *service) CloseIO(ctx context.Context, req *task.CloseIORequest) (*types.Empty, error) {
+func (s *service) CloseIO(ctx context.Context, req *taskAPI.CloseIORequest) (*ptypes.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("CLOSEIO")
 	return nil, errdefs.ErrNotImplemented
 }
 
-func (s *service) Update(ctx context.Context, req *task.UpdateTaskRequest) (*types.Empty, error) {
+func (s *service) Update(ctx context.Context, req *taskAPI.UpdateTaskRequest) (*ptypes.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("UPDATE")
 	return nil, errdefs.ErrNotImplemented
 }
@@ -842,7 +840,7 @@ func (s *service) Update(ctx context.Context, req *task.UpdateTaskRequest) (*typ
 // Wait blocks while the identified process is running and returns its exit code and exit timestamp when complete.
 // The data for Wait (including the channel it uses as an indicator of when results are ready) is provided by the
 // SIGCHLD handler, reaper, and subscribed goroutine.
-func (s *service) Wait(ctx context.Context, req *task.WaitRequest) (*task.WaitResponse, error) {
+func (s *service) Wait(ctx context.Context, req *taskAPI.WaitRequest) (*taskAPI.WaitResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("WAIT")
 	l := log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id)
 	if req.ID != s.id {
@@ -860,18 +858,18 @@ func (s *service) Wait(ctx context.Context, req *task.WaitRequest) (*task.WaitRe
 	<-proc.waitblock
 	e := proc.GetExited()
 	l.WithField("pid", e.Pid).WithField("status", e.Status).Warn("Process exited")
-	return &task.WaitResponse{
+	return &taskAPI.WaitResponse{
 		ExitStatus: uint32(e.Status),
 		ExitedAt:   e.Timestamp,
 	}, nil
 }
 
-func (s *service) Stats(ctx context.Context, req *task.StatsRequest) (*task.StatsResponse, error) {
+func (s *service) Stats(ctx context.Context, req *taskAPI.StatsRequest) (*taskAPI.StatsResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("STATS")
 	return nil, errdefs.ErrNotImplemented
 }
 
-func (s *service) Connect(ctx context.Context, req *task.ConnectRequest) (*task.ConnectResponse, error) {
+func (s *service) Connect(ctx context.Context, req *taskAPI.ConnectRequest) (*taskAPI.ConnectResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("CONNECT")
 	primaryPid := s.primary.GetPID()
 

@@ -42,7 +42,7 @@ func psCmd(cmd *exec.Cmd) (bool, error) {
 	if err != nil {
 		// `ps` exits with 1 when there are no processes, which is a valid state
 		if ee, ok := err.(*exec.ExitError); ok {
-			if ee.ProcessState.ExitCode() == 1 {
+			if ee.ExitCode() == 1 {
 				return false, nil
 			}
 		}
