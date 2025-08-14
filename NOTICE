@@ -49,11 +49,11 @@ THE SOFTWARE.
 ## github.com/cheggaaa/pb/v3
 
 * Name: github.com/cheggaaa/pb/v3
-* Version: v3.1.2
-* License: [BSD-3-Clause](https://github.com/cheggaaa/pb/blob/v3.1.2/v3/LICENSE)
+* Version: v3.1.7
+* License: [BSD-3-Clause](https://github.com/cheggaaa/pb/blob/v3.1.7/v3/LICENSE)
 
 ```
-Copyright (c) 2012-2015, Sergey Cherepanov
+Copyright (c) 2012-2024, Sergey Cherepanov
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -65,14 +65,15 @@ Redistribution and use in source and binary forms, with or without modification,
 * Neither the name of the author nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 ```
 
 =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=   =^..^=
 ## github.com/containerd/console
 
 * Name: github.com/containerd/console
-* Version: v1.0.3
-* License: [Apache-2.0](https://github.com/containerd/console/blob/v1.0.3/LICENSE)
+* Version: v1.0.5
+* License: [Apache-2.0](https://github.com/containerd/console/blob/v1.0.5/LICENSE)
 
 ```
 
@@ -475,8 +476,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## github.com/containerd/fifo
 
 * Name: github.com/containerd/fifo
-* Version: v1.0.0
-* License: [Apache-2.0](https://github.com/containerd/fifo/blob/v1.0.0/LICENSE)
+* Version: v1.1.0
+* License: [Apache-2.0](https://github.com/containerd/fifo/blob/v1.1.0/LICENSE)
 
 ```
                                  Apache License
@@ -687,8 +688,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## github.com/containerd/go-runc
 
 * Name: github.com/containerd/go-runc
-* Version: v1.0.0
-* License: [Apache-2.0](https://github.com/containerd/go-runc/blob/v1.0.0/LICENSE)
+* Version: v1.1.0
+* License: [Apache-2.0](https://github.com/containerd/go-runc/blob/v1.1.0/LICENSE)
 
 ```
                                  Apache License
@@ -1727,8 +1728,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## github.com/fatih/color
 
 * Name: github.com/fatih/color
-* Version: v1.14.1
-* License: [MIT](https://github.com/fatih/color/blob/v1.14.1/LICENSE.md)
+* Version: v1.18.0
+* License: [MIT](https://github.com/fatih/color/blob/v1.18.0/LICENSE.md)
 
 ```
 The MIT License (MIT)
@@ -2572,8 +2573,8 @@ Exhibit B - “Incompatible With Secondary Licenses” Notice
 ## github.com/mattn/go-colorable
 
 * Name: github.com/mattn/go-colorable
-* Version: v0.1.13
-* License: [MIT](https://github.com/mattn/go-colorable/blob/v0.1.13/LICENSE)
+* Version: v0.1.14
+* License: [MIT](https://github.com/mattn/go-colorable/blob/v0.1.14/LICENSE)
 
 ```
 The MIT License (MIT)
@@ -2604,8 +2605,8 @@ SOFTWARE.
 ## github.com/mattn/go-isatty
 
 * Name: github.com/mattn/go-isatty
-* Version: v0.0.17
-* License: [MIT](https://github.com/mattn/go-isatty/blob/v0.0.17/LICENSE)
+* Version: v0.0.20
+* License: [MIT](https://github.com/mattn/go-isatty/blob/v0.0.20/LICENSE)
 
 ```
 Copyright (c) Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
@@ -2624,8 +2625,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ## github.com/mattn/go-runewidth
 
 * Name: github.com/mattn/go-runewidth
-* Version: v0.0.12
-* License: [MIT](https://github.com/mattn/go-runewidth/blob/v0.0.12/LICENSE)
+* Version: v0.0.16
+* License: [MIT](https://github.com/mattn/go-runewidth/blob/v0.0.16/LICENSE)
 
 ```
 The MIT License (MIT)
@@ -2656,8 +2657,8 @@ SOFTWARE.
 ## github.com/moby/sys/mount
 
 * Name: github.com/moby/sys/mount
-* Version: v0.3.3
-* License: [Apache-2.0](https://github.com/moby/sys/blob/mount/v0.3.3/mount/LICENSE)
+* Version: v0.3.4
+* License: [Apache-2.0](https://github.com/moby/sys/blob/mount/v0.3.4/mount/LICENSE)
 
 ```
 
@@ -2869,8 +2870,8 @@ SOFTWARE.
 ## github.com/moby/sys/mountinfo
 
 * Name: github.com/moby/sys/mountinfo
-* Version: v0.6.2
-* License: [Apache-2.0](https://github.com/moby/sys/blob/mountinfo/v0.6.2/mountinfo/LICENSE)
+* Version: v0.7.2
+* License: [Apache-2.0](https://github.com/moby/sys/blob/mountinfo/v0.7.2/mountinfo/LICENSE)
 
 ```
 
@@ -3285,8 +3286,8 @@ SOFTWARE.
 ## github.com/opencontainers/image-spec/specs-go
 
 * Name: github.com/opencontainers/image-spec/specs-go
-* Version: v1.1.0-rc2.0.20221005185240-3a7f492d3f1b
-* License: [Apache-2.0](https://github.com/opencontainers/image-spec/blob/3a7f492d3f1b/LICENSE)
+* Version: v1.1.1
+* License: [Apache-2.0](https://github.com/opencontainers/image-spec/blob/v1.1.1/LICENSE)
 
 ```
 
@@ -3487,8 +3488,8 @@ SOFTWARE.
 ## github.com/opencontainers/runtime-spec/specs-go
 
 * Name: github.com/opencontainers/runtime-spec/specs-go
-* Version: v1.0.3-0.20210326190908-1c3f411f0417
-* License: [Apache-2.0](https://github.com/opencontainers/runtime-spec/blob/1c3f411f0417/LICENSE)
+* Version: v1.2.1
+* License: [Apache-2.0](https://github.com/opencontainers/runtime-spec/blob/v1.2.1/LICENSE)
 
 ```
 
@@ -3723,8 +3724,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## github.com/rivo/uniseg
 
 * Name: github.com/rivo/uniseg
-* Version: v0.2.0
-* License: [MIT](https://github.com/rivo/uniseg/blob/v0.2.0/LICENSE.txt)
+* Version: v0.4.7
+* License: [MIT](https://github.com/rivo/uniseg/blob/v0.4.7/LICENSE.txt)
 
 ```
 MIT License
@@ -3787,8 +3788,8 @@ THE SOFTWARE.
 ## github.com/spf13/cobra
 
 * Name: github.com/spf13/cobra
-* Version: v1.6.1
-* License: [Apache-2.0](https://github.com/spf13/cobra/blob/v1.6.1/LICENSE.txt)
+* Version: v1.9.1
+* License: [Apache-2.0](https://github.com/spf13/cobra/blob/v1.9.1/LICENSE.txt)
 
 ```
                                 Apache License
@@ -3972,8 +3973,8 @@ THE SOFTWARE.
 ## github.com/spf13/pflag
 
 * Name: github.com/spf13/pflag
-* Version: v1.0.5
-* License: [BSD-3-Clause](https://github.com/spf13/pflag/blob/v1.0.5/LICENSE)
+* Version: v1.0.6
+* License: [BSD-3-Clause](https://github.com/spf13/pflag/blob/v1.0.6/LICENSE)
 
 ```
 Copyright (c) 2012 Alex Ogier. All rights reserved.
@@ -4250,11 +4251,11 @@ file for a list of direct dependencies and go.sum for transitive dependencies
 ## golang.org/x/sync/errgroup
 
 * Name: golang.org/x/sync/errgroup
-* Version: v0.3.0
-* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sync/+/v0.3.0:LICENSE)
+* Version: v0.13.0
+* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sync/+/v0.13.0:LICENSE)
 
 ```
-Copyright (c) 2009 The Go Authors. All rights reserved.
+Copyright 2009 The Go Authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4266,7 +4267,7 @@ notice, this list of conditions and the following disclaimer.
 copyright notice, this list of conditions and the following disclaimer
 in the documentation and/or other materials provided with the
 distribution.
-   * Neither the name of Google Inc. nor the names of its
+   * Neither the name of Google LLC nor the names of its
 contributors may be used to endorse or promote products derived from
 this software without specific prior written permission.
 
@@ -4288,11 +4289,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## golang.org/x/sys
 
 * Name: golang.org/x/sys
-* Version: v0.13.0
-* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sys/+/v0.13.0:LICENSE)
+* Version: v0.35.0
+* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sys/+/v0.35.0:LICENSE)
 
 ```
-Copyright (c) 2009 The Go Authors. All rights reserved.
+Copyright 2009 The Go Authors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -4304,7 +4305,7 @@ notice, this list of conditions and the following disclaimer.
 copyright notice, this list of conditions and the following disclaimer
 in the documentation and/or other materials provided with the
 distribution.
-   * Neither the name of Google Inc. nor the names of its
+   * Neither the name of Google LLC nor the names of its
 contributors may be used to endorse or promote products derived from
 this software without specific prior written permission.
 
@@ -4752,8 +4753,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## google.golang.org/protobuf
 
 * Name: google.golang.org/protobuf
-* Version: v1.31.0
-* License: [BSD-3-Clause](https://github.com/protocolbuffers/protobuf-go/blob/v1.31.0/LICENSE)
+* Version: v1.33.0
+* License: [BSD-3-Clause](https://github.com/protocolbuffers/protobuf-go/blob/v1.33.0/LICENSE)
 
 ```
 Copyright (c) 2018 The Go Authors. All rights reserved.
