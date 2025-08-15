@@ -21,7 +21,6 @@ import (
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/api/events"
 	tasktypes "github.com/containerd/containerd/api/types/task"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/process"
@@ -30,6 +29,8 @@ import (
 	"github.com/containerd/containerd/runtime/v2/shim"
 	taskAPI "github.com/containerd/containerd/runtime/v2/task"
 	"github.com/containerd/containerd/sys/reaper"
+	"github.com/containerd/errdefs"
+	"github.com/containerd/errdefs/pkg/errgrpc"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
@@ -822,7 +823,7 @@ func (s *service) ResizePty(ctx context.Context, req *taskAPI.ResizePtyRequest) 
 		Width:  uint16(req.Width),
 		Height: uint16(req.Height),
 	}); err != nil {
-		return nil, errdefs.ToGRPC(err)
+		return nil, errgrpc.ToGRPC(err)
 	}
 	return empty, nil
 }
