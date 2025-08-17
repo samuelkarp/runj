@@ -14,8 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"go.sbk.wtf/runj/runtimespec"
-
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,11 +56,9 @@ func TestCreateDelete(t *testing.T) {
 		{
 			Process: &runtimespec.Process{},
 			FreeBSD: &runtimespec.FreeBSD{
-				Network: &runtimespec.FreeBSDNetwork{
-					IPv4: &runtimespec.FreeBSDIPv4{
-						Mode: runtimespec.FreeBSDIPv4ModeNew,
-						Addr: []string{"127.0.0.2"},
-					},
+				Jail: &runtimespec.FreeBSDJail{
+					Ip4:     runtimespec.FreeBSDShareNew,
+					Ip4Addr: []string{"127.0.0.2"},
 				},
 			},
 		},
@@ -69,10 +66,8 @@ func TestCreateDelete(t *testing.T) {
 		{
 			Process: &runtimespec.Process{},
 			FreeBSD: &runtimespec.FreeBSD{
-				Network: &runtimespec.FreeBSDNetwork{
-					VNet: &runtimespec.FreeBSDVNet{
-						Mode: runtimespec.FreeBSDVNetModeNew,
-					},
+				Jail: &runtimespec.FreeBSDJail{
+					Vnet: runtimespec.FreeBSDShareNew,
 				},
 			},
 		},

@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strconv"
 
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	"go.sbk.wtf/runj/hook"
 	"go.sbk.wtf/runj/jail"
 	"go.sbk.wtf/runj/oci"
-	"go.sbk.wtf/runj/runtimespec"
 	"go.sbk.wtf/runj/state"
 
 	"github.com/spf13/cobra"
@@ -167,15 +167,11 @@ written`)
 			Root:     rootPath,
 			Hostname: ociConfig.Hostname,
 		}
-		if ociConfig.FreeBSD != nil && ociConfig.FreeBSD.Network != nil {
-			if ociConfig.FreeBSD.Network.IPv4 != nil {
-				jailcfg.IP4 = string(ociConfig.FreeBSD.Network.IPv4.Mode)
-				jailcfg.IP4Addr = ociConfig.FreeBSD.Network.IPv4.Addr
-			}
-			if ociConfig.FreeBSD.Network.VNet != nil {
-				jailcfg.VNet = string(ociConfig.FreeBSD.Network.VNet.Mode)
-				jailcfg.VNetInterface = ociConfig.FreeBSD.Network.VNet.Interfaces
-			}
+		if ociConfig.FreeBSD != nil && ociConfig.FreeBSD.Jail != nil {
+			jailcfg.IP4 = string(ociConfig.FreeBSD.Jail.Ip4)
+			jailcfg.IP4Addr = ociConfig.FreeBSD.Jail.Ip4Addr
+			jailcfg.VNet = string(ociConfig.FreeBSD.Jail.Vnet)
+			jailcfg.VNetInterface = ociConfig.FreeBSD.Jail.VnetInterfaces
 		}
 
 		var confPath string

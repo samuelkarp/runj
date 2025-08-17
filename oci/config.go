@@ -5,8 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	"go.sbk.wtf/runj/internal/util"
-	"go.sbk.wtf/runj/runtimespec"
+	runjspec "go.sbk.wtf/runj/runtimespec"
 	"go.sbk.wtf/runj/state"
 )
 
@@ -58,7 +59,7 @@ func LoadConfig(id string) (*runtimespec.Spec, error) {
 		if err != nil {
 			return nil, err
 		}
-		freebsd := &runtimespec.FreeBSD{}
+		freebsd := &runjspec.FreeBSD{}
 		err = json.Unmarshal(extData, freebsd)
 		if err != nil {
 			return nil, err
@@ -72,37 +73,31 @@ func LoadConfig(id string) (*runtimespec.Spec, error) {
 // together.  Fields specified in the original spec are preserved except in the
 // case where they are overwritten.  Slices the FreeBSD section are appended to
 // slices specified in the original spec.
-func merge(spec *runtimespec.Spec, freebsd *runtimespec.FreeBSD) {
+func merge(spec *runtimespec.Spec, freebsd *runjspec.FreeBSD) {
 	if spec == nil || freebsd == nil {
 		return
 	}
 	if spec.FreeBSD == nil {
 		spec.FreeBSD = &runtimespec.FreeBSD{}
 	}
+	if spec.FreeBSD.Jail == nil {
+		spec.FreeBSD.Jail = &runtimespec.FreeBSDJail{}
+	}
 	if freebsd.Network != nil {
-		if spec.FreeBSD.Network == nil {
-			spec.FreeBSD.Network = &runtimespec.FreeBSDNetwork{}
-		}
 		if freebsd.Network.IPv4 != nil {
-			if spec.FreeBSD.Network.IPv4 == nil {
-				spec.FreeBSD.Network.IPv4 = &runtimespec.FreeBSDIPv4{}
-			}
 			if freebsd.Network.IPv4.Mode != "" {
-				spec.FreeBSD.Network.IPv4.Mode = freebsd.Network.IPv4.Mode
+				spec.FreeBSD.Jail.Ip4 = runtimespec.FreeBSDSharing(freebsd.Network.IPv4.Mode)
 			}
 			if len(freebsd.Network.IPv4.Addr) > 0 {
-				spec.FreeBSD.Network.IPv4.Addr = append(spec.FreeBSD.Network.IPv4.Addr, freebsd.Network.IPv4.Addr...)
+				spec.FreeBSD.Jail.Ip4Addr = append(spec.FreeBSD.Jail.Ip4Addr, freebsd.Network.IPv4.Addr...)
 			}
 		}
 		if freebsd.Network.VNet != nil {
-			if spec.FreeBSD.Network.VNet == nil {
-				spec.FreeBSD.Network.VNet = &runtimespec.FreeBSDVNet{}
-			}
 			if freebsd.Network.VNet.Mode != "" {
-				spec.FreeBSD.Network.VNet.Mode = freebsd.Network.VNet.Mode
+				spec.FreeBSD.Jail.Vnet = runtimespec.FreeBSDSharing(freebsd.Network.VNet.Mode)
 			}
 			if len(freebsd.Network.VNet.Interfaces) > 0 {
-				spec.FreeBSD.Network.VNet.Interfaces = append(spec.FreeBSD.Network.VNet.Interfaces, freebsd.Network.VNet.Interfaces...)
+				spec.FreeBSD.Jail.VnetInterfaces = append(spec.FreeBSD.Jail.VnetInterfaces, freebsd.Network.VNet.Interfaces...)
 			}
 		}
 	}

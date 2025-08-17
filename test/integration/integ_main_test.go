@@ -15,14 +15,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.sbk.wtf/runj/internal/util"
-	"go.sbk.wtf/runj/runtimespec"
-
-	"github.com/cheggaaa/pb/v3"
-
 	"go.sbk.wtf/runj/demo"
+	"go.sbk.wtf/runj/internal/util"
+	"go.sbk.wtf/runj/jail"
 )
 
 const (
@@ -183,13 +182,13 @@ func runExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait time.Du
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() {
-		if err == nil {
+	t.Cleanup(func() {
+		if err == nil && !t.Failed() {
 			os.RemoveAll(bundleDir)
 		} else {
-			t.Log("preserving tempdir due to error", bundleDir, err)
+			t.Log("preserving tempdir due to error or failed", bundleDir, err, t.Failed())
 		}
-	}()
+	})
 	rootDir := filepath.Join(bundleDir, "root")
 	err = os.MkdirAll(rootDir, 0755)
 	if err != nil {
@@ -233,6 +232,15 @@ func runExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait time.Du
 	}
 
 	defer func() {
+		// copy jail conf
+		c := jail.ConfPath(id)
+		conf, err := os.Open(c)
+		if err == nil {
+			out, _ := os.OpenFile(filepath.Join(bundleDir, "jail.conf"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o666)
+			io.Copy(out, conf)
+			t.Log("copied jail.conf")
+		}
+		// remove jail
 		cmd = exec.Command("runj", "delete", id)
 		cmd.Stdin = nil
 		outBytes, cleanupErr := cmd.CombinedOutput()

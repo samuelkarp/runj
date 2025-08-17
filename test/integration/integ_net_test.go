@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.sbk.wtf/runj/runtimespec"
 )
 
 func TestHostIPv4Network(t *testing.T) {
@@ -50,9 +50,8 @@ func TestHostIPv4Network(t *testing.T) {
 	t.Cleanup(func() { server.Shutdown(context.Background()) })
 
 	spec.FreeBSD = &runtimespec.FreeBSD{
-		Network: &runtimespec.FreeBSDNetwork{
-			IPv4: &runtimespec.FreeBSDIPv4{
-				Mode: "inherit"},
+		Jail: &runtimespec.FreeBSDJail{
+			Ip4: runtimespec.FreeBSDShareInherit,
 		},
 	}
 	spec.Process = &runtimespec.Process{
@@ -105,10 +104,10 @@ func TestVNetBridge(t *testing.T) {
 				},
 			}
 			spec.FreeBSD = &runtimespec.FreeBSD{
-				Network: &runtimespec.FreeBSDNetwork{VNet: &runtimespec.FreeBSDVNet{
-					Mode:       "new",
-					Interfaces: []string{epairB},
-				}},
+				Jail: &runtimespec.FreeBSDJail{
+					Vnet:           runtimespec.FreeBSDShareNew,
+					VnetInterfaces: []string{epairB},
+				},
 			}
 
 			stdout, stderr, err := runExitingJail(t, "integ-test-vnet-bridge", spec, 30*time.Second)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/containerd/containerd/mount"
 
-	"go.sbk.wtf/runj/runtimespec"
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Mount mounts the mounts

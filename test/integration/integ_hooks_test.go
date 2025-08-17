@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
-	"go.sbk.wtf/runj/runtimespec"
 )
 
 func TestHooks(t *testing.T) {

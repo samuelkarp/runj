@@ -3326,8 +3326,8 @@ SOFTWARE.
 ## github.com/opencontainers/runtime-spec/specs-go
 
 * Name: github.com/opencontainers/runtime-spec/specs-go
-* Version: v1.2.1
-* License: [Apache-2.0](https://github.com/opencontainers/runtime-spec/blob/v1.2.1/LICENSE)
+* Version: v1.3.0
+* License: [Apache-2.0](https://github.com/opencontainers/runtime-spec/blob/v1.3.0/LICENSE)
 
 ```
 

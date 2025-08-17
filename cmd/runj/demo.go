@@ -8,13 +8,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.sbk.wtf/runj/demo"
 	"go.sbk.wtf/runj/oci"
 
-	"go.sbk.wtf/runj/runtimespec"
-
-	"go.sbk.wtf/runj/demo"
-
 	pb "github.com/cheggaaa/pb/v3"
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/spf13/cobra"
 )
 
@@ -180,10 +178,8 @@ func exampleSpec() *runtimespec.Spec {
 			Options:     []string{"ruleset=4"},
 		}},
 		FreeBSD: &runtimespec.FreeBSD{
-			Network: &runtimespec.FreeBSDNetwork{
-				IPv4: &runtimespec.FreeBSDIPv4{
-					Mode: runtimespec.FreeBSDIPv4ModeInherit,
-				},
+			Jail: &runtimespec.FreeBSDJail{
+				Ip4: runtimespec.FreeBSDShareInherit,
 			},
 		},
 	}

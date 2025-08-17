@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"time"
 
-	"go.sbk.wtf/runj/runtimespec"
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	"go.sbk.wtf/runj/state"
 )
 
