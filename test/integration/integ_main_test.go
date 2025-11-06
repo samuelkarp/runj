@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.sbk.wtf/runj/demo"
 	"go.sbk.wtf/runj/internal/util"
-	"go.sbk.wtf/runj/jail"
 )
 
 const (
@@ -232,14 +231,6 @@ func runExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait time.Du
 	}
 
 	defer func() {
-		// copy jail conf
-		c := jail.ConfPath(id)
-		conf, err := os.Open(c)
-		if err == nil {
-			out, _ := os.OpenFile(filepath.Join(bundleDir, "jail.conf"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o666)
-			io.Copy(out, conf)
-			t.Log("copied jail.conf")
-		}
 		// remove jail
 		cmd = exec.Command("runj", "delete", id)
 		cmd.Stdin = nil

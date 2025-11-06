@@ -19,10 +19,9 @@ The above procedure is skipped when secondary processes are started, since there
 is no create/start split involved for these processes and the STDIO of `runj
 extension exec` is used directly.
 
-This program exec(2)s to jexec(8), which is then responsible for jail_attach(2)
-and another exec(2) into the final target program.  The sequence of `exec(2)`
-preserves the PID so that it can be the target of a future invocation of `runj
-kill`.
+This program exec(2)s to into the final target program.  The sequence of
+exec(2)` preserves the PID so that it can be the target of a future invocation
+of `runj kill`.
 */
 package main
 

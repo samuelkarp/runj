@@ -2,6 +2,7 @@ package jail
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -17,6 +18,18 @@ type jail struct {
 	m       sync.Mutex
 	id      ID
 	removed bool
+}
+
+func Create(config *CreateParams) (Jail, error) {
+	iovec, err := config.iovec()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize iovec: %w", err)
+	}
+	jid, err := set(iovec, _FLAG_CREATE)
+	if err != nil {
+		return nil, fmt.Errorf("failed to invoke jail_set: %w", err)
+	}
+	return &jail{id: jid}, nil
 }
 
 // FromName queries the OS for a jail with the specified name

@@ -187,11 +187,11 @@ nameserver 8.8.8.8
 
 ## Implementation details
 
-runj uses both FreeBSD's userland utilities for managing jails and jail-related
-syscalls.  You must have working versions of `jail(8)`, `jls(8)`, `jexec(8)`,
-and `ps(1)` installed on your system.  `runj kill` makes use of the `kill(1)`
-command inside the jail's rootfs; if this command does not  exist (or is not
-functional), `runj kill` will not work.
+runj directly invokes FreeBSD's jail-related syscalls, but some command-line
+utilities are still necessary, including `mount(8)` for mounting filesystems
+(the Go runtime does not implement mounting directly on FreeBSD), `ps(1)`
+(outside the jail) and `kill(1)` (inside the jail) for `runj kill` to  work
+properly.  `ifconfig(8)` is expected to be required in a future revision.
 
 ## Building
 

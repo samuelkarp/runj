@@ -3,8 +3,8 @@
 `jail(8)`, `jls(8)`, and `jexec(8)` are FreeBSD tools for jail administration.
 These tools are part of a standard FreeBSD installation and are convenient ways
 to interact with the relevant FreeBSD jail-related syscalls without implementing
-the syscalls yourself.  `runj` uses these tools.  This document serves as a set
-of notes for how the tools are used.
+the syscalls yourself.  `runj` does not use these tools, however this document
+preserves previous notes on how `runj` used them before.
 
 ## `jail(8)`
 * Create the `jail.conf(5)` file with `persist = true`.  This allows the jail

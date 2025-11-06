@@ -4,11 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/netip"
 	"strconv"
 	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
+)
+
+const (
+	_FLAG_CREATE = 0x01
 )
 
 // ID identifies jails
@@ -26,7 +31,7 @@ func remove(jid ID) error {
 
 // find queries the OS for a jail with the specified name or JID
 func find(identifier string) (ID, error) {
-	params := &findIovec{}
+	params := &findParams{}
 	jid, err := strconv.Atoi(identifier)
 	if err == nil {
 		if jid == 0 {
@@ -39,19 +44,19 @@ func find(identifier string) (ID, error) {
 	} else {
 		params.name = identifier
 	}
-	iovec, err := params.serialize()
+	iovec, err := params.iovec()
 	if err != nil {
 		return 0, err
 	}
 	return get(iovec, 0)
 }
 
-type findIovec struct {
+type findParams struct {
 	jid  int32
 	name string
 }
 
-func (f *findIovec) serialize() ([]syscall.Iovec, error) {
+func (f *findParams) iovec() ([]syscall.Iovec, error) {
 	iovec := make([]syscall.Iovec, 0)
 	if f.jid != 0 {
 		jidKey, err := syscall.ByteSliceFromString("jid")
@@ -62,28 +67,13 @@ func (f *findIovec) serialize() ([]syscall.Iovec, error) {
 		iovec = append(iovec, makeIovec(jidKey, jidVal, 4)...)
 	}
 	if f.name != "" {
-		nameKey, err := syscall.ByteSliceFromString("name")
+		i, err := stringIovec("name", f.name)
 		if err != nil {
 			return nil, err
 		}
-		nameVal, err := syscall.BytePtrFromString(f.name)
-		if err != nil {
-			return nil, err
-		}
-		iovec = append(iovec, makeIovec(nameKey, nameVal, len(f.name)+1)...)
+		iovec = append(iovec, i...)
 	}
 	return iovec, nil
-}
-
-func makeIovec(name []byte, value *byte, valuesize int) []syscall.Iovec {
-	iovecs := make([]syscall.Iovec, 2)
-
-	iovecs[0].Base = &name[0]
-	iovecs[0].SetLen(len(name))
-
-	iovecs[1].Base = value
-	iovecs[1].SetLen(valuesize)
-	return iovecs
 }
 
 // get calls SYS_JAIL_GET
@@ -105,7 +95,7 @@ func jidSyscall(callnum uintptr, jid ID) error {
 }
 
 func iovSyscall(callnum uintptr, iovecs []syscall.Iovec, flags int) (ID, error) {
-	errbuf, erriov := makeErrorIov()
+	errbuf, erriov := errorIovec()
 	iovecs = append(iovecs, erriov...)
 
 	jid, _, errno := syscall.Syscall(callnum, uintptr(unsafe.Pointer(&iovecs[0])), uintptr(len(iovecs)), uintptr(flags))
@@ -119,13 +109,73 @@ func iovSyscall(callnum uintptr, iovecs []syscall.Iovec, flags int) (ID, error) 
 }
 
 const (
-	errormsglen  = 1024
-	iovErrmsgKey = "errmsg"
+	errorBufferLen = 1024
+	errorKey       = "errmsg"
 )
 
-func makeErrorIov() ([]byte, []syscall.Iovec) {
-	errmsg := make([]byte, errormsglen)
-	iovErrmsg, _ := syscall.ByteSliceFromString(iovErrmsgKey)
-	erriov := makeIovec(iovErrmsg, &errmsg[0], len(errmsg))
-	return errmsg, erriov
+func errorIovec() ([]byte, []syscall.Iovec) {
+	buffer := make([]byte, errorBufferLen)
+	n, _ := syscall.ByteSliceFromString(errorKey)
+	return buffer, makeIovec(n, &buffer[0], len(buffer))
+}
+
+func stringIovec(name string, value string) ([]syscall.Iovec, error) {
+	n, err := syscall.ByteSliceFromString(name)
+	if err != nil {
+		return nil, err
+	}
+	v, err := syscall.BytePtrFromString(value)
+	if err != nil {
+		return nil, err
+	}
+	return makeIovec(n, v, len(value)+1), nil
+}
+
+func int32Iovec(name string, value int32) ([]syscall.Iovec, error) {
+	n, err := syscall.ByteSliceFromString(name)
+	if err != nil {
+		return nil, err
+	}
+	v := (*byte)(unsafe.Pointer(&value))
+	size := 4
+	return makeIovec(n, v, size), nil
+}
+
+func netIPIovec(name string, value []netip.Addr) ([]syscall.Iovec, error) {
+	n, err := syscall.ByteSliceFromString(name)
+	if err != nil {
+		return nil, err
+	}
+	bytes := make([]byte, 0)
+	is6 := false
+	for i, addr := range value {
+		if i == 0 {
+			is6 = addr.Is6()
+		} else if is6 && addr.Is4() {
+			return nil, fmt.Errorf("expected IPv6 but %v is IPv4", addr)
+		} else if !is6 && addr.Is6() {
+			return nil, fmt.Errorf("expected IPv4 but %v is IPv6", addr)
+		}
+		bytes = append(bytes, addr.AsSlice()...)
+	}
+	return makeIovec(n, &bytes[0], len(bytes)), nil
+}
+
+func nilIovec(name string) ([]syscall.Iovec, error) {
+	n, err := syscall.ByteSliceFromString(name)
+	if err != nil {
+		return nil, err
+	}
+	return makeIovec(n, nil, 0), nil
+}
+
+func makeIovec(name []byte, value *byte, size int) []syscall.Iovec {
+	iovecs := make([]syscall.Iovec, 2)
+
+	iovecs[0].Base = &name[0]
+	iovecs[0].SetLen(len(name))
+
+	iovecs[1].Base = value
+	iovecs[1].SetLen(size)
+	return iovecs
 }

@@ -162,7 +162,7 @@ written`)
 			return errors.New("console-socket provided but Process.Terminal is false")
 		}
 
-		jailcfg := &jail.Config{
+		jailcfg := &jail.CreateParams{
 			Name:     id,
 			Root:     rootPath,
 			Hostname: ociConfig.Hostname,
@@ -174,12 +174,8 @@ written`)
 			jailcfg.VNetInterface = ociConfig.FreeBSD.Jail.VnetInterfaces
 		}
 
-		var confPath string
-		confPath, err = jail.CreateConfig(jailcfg)
+		j, err := jail.Create(jailcfg)
 		if err != nil {
-			return err
-		}
-		if err := jail.CreateJail(cmd.Context(), confPath); err != nil {
 			return err
 		}
 		err = jail.Mount(ociConfig)
