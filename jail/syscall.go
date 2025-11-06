@@ -2,21 +2,24 @@ package jail
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // ID identifies jails
 type ID int32
 
-// attach attaches the current process to the jail
+// attach attaches the current process to the jail with SYS_JAIL_ATTACH
 func attach(jid ID) error {
 	return jidSyscall(syscall.SYS_JAIL_ATTACH, jid)
 }
 
-// remove destroys the jail, killing all processes within it
+// remove destroys the jail, killing all processes within it with SYS_JAIL_REMOVE
 func remove(jid ID) error {
 	return jidSyscall(syscall.SYS_JAIL_REMOVE, jid)
 }
@@ -88,6 +91,11 @@ func get(iovecs []syscall.Iovec, flags int) (ID, error) {
 	return iovSyscall(syscall.SYS_JAIL_GET, iovecs, flags)
 }
 
+// set creates or modifies jails with parameters provided in []syscall.Iovec via SYS_JAIL_SET
+func set(iovecs []syscall.Iovec, flags int) (ID, error) {
+	return iovSyscall(syscall.SYS_JAIL_SET, iovecs, flags)
+}
+
 func jidSyscall(callnum uintptr, jid ID) error {
 	_, _, errno := syscall.Syscall(callnum, uintptr(jid), 0, 0)
 	if errno != 0 {
@@ -97,9 +105,27 @@ func jidSyscall(callnum uintptr, jid ID) error {
 }
 
 func iovSyscall(callnum uintptr, iovecs []syscall.Iovec, flags int) (ID, error) {
+	errbuf, erriov := makeErrorIov()
+	iovecs = append(iovecs, erriov...)
+
 	jid, _, errno := syscall.Syscall(callnum, uintptr(unsafe.Pointer(&iovecs[0])), uintptr(len(iovecs)), uintptr(flags))
 	if int32(jid) == -1 || errno != 0 {
-		return ID(jid), errno
+		if errbuf[0] == 0 {
+			return ID(jid), errno
+		}
+		return ID(jid), fmt.Errorf("errmsg: %s", unix.ByteSliceToString(errbuf))
 	}
 	return ID(jid), nil
+}
+
+const (
+	errormsglen  = 1024
+	iovErrmsgKey = "errmsg"
+)
+
+func makeErrorIov() ([]byte, []syscall.Iovec) {
+	errmsg := make([]byte, errormsglen)
+	iovErrmsg, _ := syscall.ByteSliceFromString(iovErrmsgKey)
+	erriov := makeIovec(iovErrmsg, &errmsg[0], len(errmsg))
+	return errmsg, erriov
 }
