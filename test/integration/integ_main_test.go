@@ -186,6 +186,10 @@ func runExitingJail(t *testing.T, id string, spec runtimespec.Spec, wait time.Du
 			os.RemoveAll(bundleDir)
 		} else {
 			t.Log("preserving tempdir due to error or failed", bundleDir, err, t.Failed())
+			stderr, err := os.ReadFile(filepath.Join(bundleDir, "stderr"))
+			if err == nil {
+				t.Logf("stderr: %s", string(stderr))
+			}
 		}
 	})
 	rootDir := filepath.Join(bundleDir, "root")
