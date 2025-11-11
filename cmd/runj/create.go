@@ -188,6 +188,16 @@ written`)
 			}
 			jail.Unmount(ociConfig)
 		}()
+		err = jail.MoveVNetInterfaces(cmd.Context(), ociConfig, j, jail.VNetMoveIn)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err == nil {
+				return
+			}
+			jail.MoveVNetInterfaces(cmd.Context(), ociConfig, j, jail.VNetMoveOut)
+		}()
 
 		// Setup and start the "runj-entrypoint" helper program in order to
 		// get the container STDIO hooked up properly.

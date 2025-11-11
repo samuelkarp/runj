@@ -12,11 +12,12 @@ type Jail interface {
 	Attach() error
 	// Remove destroys the jail
 	Remove() error
+	id() ID
 }
 
 type jail struct {
 	m       sync.Mutex
-	id      ID
+	_id     ID
 	removed bool
 }
 
@@ -29,7 +30,7 @@ func Create(config *CreateParams) (Jail, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to invoke jail_set: %w", err)
 	}
-	return &jail{id: jid}, nil
+	return &jail{_id: jid}, nil
 }
 
 // FromName queries the OS for a jail with the specified name
@@ -38,12 +39,12 @@ func FromName(name string) (Jail, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &jail{id: id}, nil
+	return &jail{_id: id}, nil
 }
 
 // Attach attaches the current running process to the jail
 func (j *jail) Attach() error {
-	return attach(j.id)
+	return attach(j._id)
 }
 
 func (j *jail) Remove() error {
@@ -53,9 +54,13 @@ func (j *jail) Remove() error {
 		return errors.New("already removed")
 	}
 
-	if err := remove(j.id); err != nil {
+	if err := remove(j._id); err != nil {
 		return err
 	}
 	j.removed = true
 	return nil
+}
+
+func (j *jail) id() ID {
+	return j._id
 }

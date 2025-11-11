@@ -19,6 +19,10 @@ const (
 // ID identifies jails
 type ID int32
 
+func (id ID) String() string {
+	return strconv.Itoa(int(id))
+}
+
 // attach attaches the current process to the jail with SYS_JAIL_ATTACH
 func attach(jid ID) error {
 	return jidSyscall(syscall.SYS_JAIL_ATTACH, jid)

@@ -189,9 +189,9 @@ nameserver 8.8.8.8
 
 runj directly invokes FreeBSD's jail-related syscalls, but some command-line
 utilities are still necessary, including `mount(8)` for mounting filesystems
-(the Go runtime does not implement mounting directly on FreeBSD), `ps(1)`
-(outside the jail) and `kill(1)` (inside the jail) for `runj kill` to  work
-properly.  `ifconfig(8)` is expected to be required in a future revision.
+(the Go runtime does not implement mounting directly on FreeBSD), `ifconfig(8)`
+for moving VNet interfaces into a jail, and both `ps(1)` (outside the jail) and
+`kill(1)` (inside the jail) for `runj kill` to  work properly.
 
 ## Building
 
