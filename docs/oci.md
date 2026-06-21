@@ -1,14 +1,59 @@
-*Placeholder for OCI changes*
+# OCI runtime spec notes
+
+This document records runj's FreeBSD-specific extensions to the OCI runtime
+specification, along with notes on how runj interprets parts of the spec that
+are underspecified or where it follows `runc`'s behavior for compatibility.
 
 # FreeBSD extensions
 
-runj supports a new `freebsd` field in the `config.json` that models
-FreeBSD-specific configuration options for jails.  The `freebsd` field can also
-be written to a runj-specific `runj.ext.json` file in the bundle directory to
-allow this functionality to be tested without modifying other tools.
+FreeBSD-specific jail configuration can be supplied in two ways, each with its
+own schema:
 
-Fields inside the `freebsd` struct:
-* `network` (struct)
+1. Directly in the bundle's `config.json`, using the OCI runtime spec's own
+   `freebsd.jail` fields.
+2. In a runj-specific `runj.ext.json` file in the bundle directory, using a
+   separate runj-defined schema rooted at a `network` struct.  This allows
+   software that generates a `config.json` without awareness of FreeBSD or runj
+   to be augmented with additional settings without modifying the generator.
+
+When a `runj.ext.json` file is present, runj merges it into the configuration
+loaded from `config.json`.
+
+## In `config.json` (`freebsd.jail` schema)
+
+runj reads the following fields from the OCI runtime spec's `freebsd.jail`
+struct:
+* `ip4` (string) - IPv4 mode.  Valid options are `new`, `inherit`, and
+  `disable`.  Equivalent to the `ip4` field described in the `jail(8)` manual
+  page.
+* `ip4Addr` ([]string) - list of IPv4 addresses assigned to the jail.
+  Equivalent to the `ip4.addr` field described in the `jail(8)` manual page.
+* `vnet` (string) - vnet mode.  Valid options are `new` and `inherit`.
+  Equivalent to the `vnet` field described in the `jail(8)` manual page.
+* `vnetInterfaces` ([]string) - list of network interfaces assigned to the jail.
+  Equivalent to the `vnet.interface` field described in the `jail(8)` manual
+  page.
+
+An example embedded in `config.json`:
+
+```json
+{
+  "ociVersion": "1.3.0",
+  "process": {
+    // omitted
+  },
+  "freebsd": {
+    "jail": {
+      "ip4": "new",
+      "ip4Addr": ["127.0.0.2"],
+      "vnet": "new",
+      "vnetInterfaces": ["epair0b"]
+    }
+  }
+}
+```
+
+## In `runj.ext.json` (runj `network` schema)
 
 Fields inside the `network` struct:
 * `ipv4` (struct)
@@ -29,30 +74,7 @@ Fields inside the `vnet` struct:
   This field is the equivalent of the `vnet.interface` field described in the
   `jail(8)` manual page.
 
-If embedded in the normal `config.json`, an example would look as follows:
-
-```json
-{
-  "ociVersion": "1.0.2",
-  "process": {
-    // omitted
-  },
-  "freebsd": {
-    "network": {
-      "ipv4": {
-        "mode": "new",
-        "addr": ["127.0.0.2"]
-      },
-      "vnet": {
-        "mode": "new",
-        "interfaces": ["epair0b"]
-      }
-    }
-  }
-}
-```
-
-If included in a separate `runj.ext.json`, an example would look as follows:
+An example `runj.ext.json`:
 
 ```json
 {
