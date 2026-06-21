@@ -51,10 +51,10 @@ func render() string {
 		revision = revOverride
 	}
 	sb := strings.Builder{}
-	sb.WriteString(fmt.Sprintf("%s (%s)\n", version, revision))
+	fmt.Fprintf(&sb, "%s (%s)\n", version, revision)
 	sb.WriteString("go: " + bi.GoVersion)
 	for _, dep := range bi.Deps {
-		sb.WriteString(fmt.Sprintf("\n%s: %s", dep.Path, dep.Version))
+		fmt.Fprintf(&sb, "\n%s: %s", dep.Path, dep.Version)
 	}
 	return sb.String()
 }
