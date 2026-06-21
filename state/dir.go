@@ -5,10 +5,12 @@ import (
 	"path/filepath"
 )
 
-const (
-	defaultStateDir = "/var/lib/runj/jails"
-	stateDir        = defaultStateDir
-)
+const defaultStateDir = "/var/lib/runj/jails"
+
+// stateDir is the directory under which per-container state is stored.  It is a
+// variable rather than a constant so that tests can redirect it to a temporary
+// location.
+var stateDir = defaultStateDir
 
 // Create creates a state file for runj
 func Create(id, bundle string) (*State, error) {
