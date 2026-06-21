@@ -48,22 +48,25 @@ func TestRunPassesStateOnStdin(t *testing.T) {
 	assert.JSONEq(t, string(want), string(got))
 }
 
-func TestRunHonorsTimeout(t *testing.T) {
+// TestRunTimeoutKillsForkedChild is a regression test for the hook timeout not
+// bounding wall-clock time.  The hook forks a long-lived grandchild ("sleep"
+// behind a compound command so the shell does not exec into it) that inherits
+// the stdio pipes.  Without process-group kill, the SIGKILL on timeout reaps
+// only the shell, leaving the grandchild holding the pipes and blocking Run for
+// the full sleep duration.
+func TestRunTimeoutKillsForkedChild(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping timeout test in short mode")
 	}
-	s := &state.Output{ID: "container1", Status: "created"}
 	timeout := 1
-	// Exec sleep directly (rather than via "sh -c") so the timeout's SIGKILL
-	// lands on the process itself; otherwise a forked grandchild would inherit
-	// the stdio pipes and delay Run's return until it exited on its own.
 	h := &runtimespec.Hook{
-		Path:    "/bin/sleep",
-		Args:    []string{"sleep", "30"},
+		Path:    "/bin/sh",
+		Args:    []string{"sh", "-c", "sleep 30; true"},
 		Timeout: &timeout,
 	}
 	start := time.Now()
-	err := Run(s, h)
+	err := Run(&state.Output{ID: "container1", Status: "created"}, h)
+	elapsed := time.Since(start)
 	assert.Error(t, err, "hook exceeding its timeout must return an error")
-	assert.Less(t, time.Since(start), 10*time.Second, "Run should return shortly after the timeout fires")
+	assert.Less(t, elapsed, 10*time.Second, "Run must return shortly after the timeout, not after the child exits")
 }
