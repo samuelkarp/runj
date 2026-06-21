@@ -178,6 +178,11 @@ written`)
 		if err != nil {
 			return err
 		}
+		defer func() {
+			if err != nil {
+				j.Remove()
+			}
+		}()
 		err = jail.Mount(ociConfig)
 		if err != nil {
 			return err
@@ -206,6 +211,11 @@ written`)
 		if err != nil {
 			return err
 		}
+		defer func() {
+			if err != nil {
+				entrypoint.Process.Kill()
+			}
+		}()
 		// the runj-entrypoint pid will become the container process's pid
 		// through a series of exec(2) calls
 		s.PID = entrypoint.Process.Pid
