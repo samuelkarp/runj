@@ -13,6 +13,8 @@ runj is an experimental, proof-of-concept
 [![Build Status](https://api.cirrus-ci.com/github/samuelkarp/runj.svg?branch=main)](https://cirrus-ci.com/github/samuelkarp/runj)
 
 runj is in early development and is functional, but has very limited features.
+For a checklist of which parts of the OCI runtime specification are implemented,
+see [`docs/spec-coverage.md`](docs/spec-coverage.md).
 
 runj currently supports the following parts of the OCI runtime spec:
 
