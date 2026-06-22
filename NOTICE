@@ -274,8 +274,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## github.com/containerd/containerd/api
 
 * Name: github.com/containerd/containerd/api
-* Version: v1.9.0
-* License: [Apache-2.0](https://github.com/containerd/containerd/blob/api/v1.9.0/api/LICENSE)
+* Version: v1.10.0
+* License: [Apache-2.0](https://github.com/containerd/containerd/blob/api/v1.10.0/api/LICENSE)
 
 ```
 
@@ -476,8 +476,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## github.com/containerd/containerd/v2
 
 * Name: github.com/containerd/containerd/v2
-* Version: v2.1.9
-* License: [Apache-2.0](https://github.com/containerd/containerd/blob/v2.1.9/LICENSE)
+* Version: v2.2.5
+* License: [Apache-2.0](https://github.com/containerd/containerd/blob/v2.2.5/LICENSE)
 
 ```
 
@@ -4305,8 +4305,8 @@ file for a list of direct dependencies and go.sum for transitive dependencies
 ## golang.org/x/net
 
 * Name: golang.org/x/net
-* Version: v0.48.0
-* License: [BSD-3-Clause](https://cs.opensource.google/go/x/net/+/v0.48.0:LICENSE)
+* Version: v0.55.0
+* License: [BSD-3-Clause](https://cs.opensource.google/go/x/net/+/v0.55.0:LICENSE)
 
 ```
 Copyright 2009 The Go Authors.
@@ -4343,8 +4343,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## golang.org/x/sync/errgroup
 
 * Name: golang.org/x/sync/errgroup
-* Version: v0.19.0
-* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sync/+/v0.19.0:LICENSE)
+* Version: v0.21.0
+* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sync/+/v0.21.0:LICENSE)
 
 ```
 Copyright 2009 The Go Authors.
@@ -4381,8 +4381,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## golang.org/x/sys/unix
 
 * Name: golang.org/x/sys/unix
-* Version: v0.39.0
-* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sys/+/v0.39.0:LICENSE)
+* Version: v0.46.0
+* License: [BSD-3-Clause](https://cs.opensource.google/go/x/sys/+/v0.46.0:LICENSE)
 
 ```
 Copyright 2009 The Go Authors.
@@ -4419,8 +4419,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## golang.org/x/text
 
 * Name: golang.org/x/text
-* Version: v0.32.0
-* License: [BSD-3-Clause](https://cs.opensource.google/go/x/text/+/v0.32.0:LICENSE)
+* Version: v0.38.0
+* License: [BSD-3-Clause](https://cs.opensource.google/go/x/text/+/v0.38.0:LICENSE)
 
 ```
 Copyright 2009 The Go Authors.
