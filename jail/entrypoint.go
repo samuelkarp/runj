@@ -101,8 +101,12 @@ func ExecEntrypoint(id string, argv []string, env []string, consoleSocketPath st
 		}
 		env = append(env, consoleSocketEnv+"="+strconv.Itoa(fd))
 	}
+	path, err := exec.LookPath("runj-entrypoint")
+	if err != nil {
+		return err
+	}
 	args := append([]string{"runj-entrypoint", id, execSkipFifo}, argv...)
-	return unix.Exec("/usr/local/bin/runj-entrypoint", args, env)
+	return unix.Exec(path, args, env)
 }
 
 // CleanupEntrypoint sends a SIGTERM to the PID recorded in the state file.
