@@ -12,9 +12,9 @@ import (
 	"sync"
 
 	"github.com/containerd/console"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/sys/reaper"
 	runc "github.com/containerd/go-runc"
+	"github.com/containerd/log"
 	"github.com/sirupsen/logrus"
 )
 
