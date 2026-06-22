@@ -33,6 +33,16 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	// Exercise the freshly built binaries rather than whatever runj is
+	// installed on PATH.  runj locates runj-entrypoint through PATH too, so
+	// prepending the build directory covers both.
+	binDir, err := filepath.Abs("bin")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to resolve bin dir: %v\n", err)
+		os.Exit(1)
+	}
+	os.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
 	baseCache = filepath.Join(os.TempDir(), "runj-integ-test-cache", "base")
 	fullRootfs = filepath.Join(os.TempDir(), "runj-integ-test-cache", "rootfs")
 	if err := prepareRootfs(); err != nil {
