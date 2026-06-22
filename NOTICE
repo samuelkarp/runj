@@ -274,8 +274,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## github.com/containerd/containerd/api
 
 * Name: github.com/containerd/containerd/api
-* Version: v1.8.0
-* License: [Apache-2.0](https://github.com/containerd/containerd/blob/api/v1.8.0/api/LICENSE)
+* Version: v1.9.0
+* License: [Apache-2.0](https://github.com/containerd/containerd/blob/api/v1.9.0/api/LICENSE)
 
 ```
 
@@ -476,8 +476,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## github.com/containerd/containerd/v2
 
 * Name: github.com/containerd/containerd/v2
-* Version: v2.0.10
-* License: [Apache-2.0](https://github.com/containerd/containerd/blob/v2.0.10/LICENSE)
+* Version: v2.1.9
+* License: [Apache-2.0](https://github.com/containerd/containerd/blob/v2.1.9/LICENSE)
 
 ```
 
@@ -678,8 +678,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 ## github.com/containerd/continuity
 
 * Name: github.com/containerd/continuity
-* Version: v0.4.4
-* License: [Apache-2.0](https://github.com/containerd/continuity/blob/v0.4.4/LICENSE)
+* Version: v0.4.5
+* License: [Apache-2.0](https://github.com/containerd/continuity/blob/v0.4.5/LICENSE)
 
 ```
 
