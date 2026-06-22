@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/containerd/containerd/sys/reaper"
+	"github.com/containerd/containerd/v2/pkg/sys/reaper"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )

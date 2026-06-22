@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"github.com/containerd/console"
-	"github.com/containerd/containerd/sys/reaper"
+	"github.com/containerd/containerd/v2/pkg/sys/reaper"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/log"
 	"github.com/sirupsen/logrus"

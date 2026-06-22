@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"go.sbk.wtf/runj/internal/util"
@@ -20,18 +18,20 @@ import (
 
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/api/events"
-	taskAPI "github.com/containerd/containerd/api/runtime/task/v2"
+	taskAPI "github.com/containerd/containerd/api/runtime/task/v3"
+	runtimeoptions "github.com/containerd/containerd/api/types/runtimeoptions/v1"
 	tasktypes "github.com/containerd/containerd/api/types/task"
-	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/pkg/process"
-	runtimeoptions "github.com/containerd/containerd/pkg/runtimeoptions/v1"
-	"github.com/containerd/containerd/runtime"
-	"github.com/containerd/containerd/runtime/v2/shim"
-	"github.com/containerd/containerd/sys/reaper"
+	cmount "github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/core/runtime"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
+	"github.com/containerd/containerd/v2/pkg/shim"
+	"github.com/containerd/containerd/v2/pkg/shutdown"
+	"github.com/containerd/containerd/v2/pkg/sys/reaper"
 	"github.com/containerd/errdefs"
 	"github.com/containerd/errdefs/pkg/errgrpc"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/log"
+	"github.com/containerd/ttrpc"
 	"github.com/containerd/typeurl/v2"
 	"github.com/moby/sys/mount"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -42,13 +42,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// NewService creates a new runj service and returns it as a shim.Shim
-func NewService(ctx context.Context, id string, publisher shim.Publisher, shutdown func()) (shim.Shim, error) {
+// NewTaskService creates a new runj task service implementing the v3 TTRPC
+// task API.  The publisher and shutdown service are supplied by the shim
+// plugin init context.
+func NewTaskService(ctx context.Context, publisher shim.Publisher, sd shutdown.Service) (taskAPI.TTRPCTaskService, error) {
 	s := &service{
-		id:      id,
-		context: ctx,
-		cancel:  shutdown,
-		events:  make(chan interface{}, 128),
+		context:  ctx,
+		shutdown: sd,
+		events:   make(chan interface{}, 128),
 		// subscribe to the reaper to receive process exit information
 		exits: reaper.Default.Subscribe(),
 		primary: managedProcess{
@@ -63,11 +64,26 @@ func NewService(ctx context.Context, id string, publisher shim.Publisher, shutdo
 
 	// register the shim as a reaper so that it receives exit events for all (orphaned) descendent processes and can
 	// wait on their results
-	SetupReaperSignals(ctx, log.G(ctx).WithField("id", id))
+	SetupReaperSignals(ctx, log.G(ctx))
 	go s.processExits()
-
 	go s.forward(ctx, publisher)
+
+	sd.RegisterCallback(func(context.Context) error {
+		close(s.events)
+		return nil
+	})
+	if s.shimAddress != "" {
+		sd.RegisterCallback(func(context.Context) error {
+			return shim.RemoveSocket(s.shimAddress)
+		})
+	}
 	return s, nil
+}
+
+// RegisterTTRPC registers the task service with the shim's TTRPC server.
+func (s *service) RegisterTTRPC(server *ttrpc.Server) error {
+	taskAPI.RegisterTTRPCTaskService(server, s)
+	return nil
 }
 
 // processExits handles exits for child processes inside the jail
@@ -173,8 +189,8 @@ func mapTopic(e interface{}) string {
 }
 
 var (
-	// check to make sure the *service implements the GRPC API
-	_ taskAPI.TaskService = (*service)(nil)
+	// check to make sure the *service implements the TTRPC API
+	_ taskAPI.TTRPCTaskService = (*service)(nil)
 
 	// empty is an empty return value
 	empty = &emptypb.Empty{}
@@ -183,7 +199,7 @@ var (
 type service struct {
 	id          string
 	context     context.Context
-	cancel      func()
+	shutdown    shutdown.Service
 	events      chan interface{}
 	eventSendMu sync.Mutex
 	shimAddress string
@@ -198,118 +214,13 @@ type service struct {
 	auxiliary map[string]*managedProcess
 }
 
-// StartShim is called whenever a new container is created.  The role of the
-// function is to return a domain socket address where the shim can be reached
-// for further API calls.  This allows the shim logic to decide how many shims
-// are in-use: one per container, one per machine, one per group of containers,
-// or some other decision.  When this function returns, the current process
-// exits.  If there is no existing shim with an address to use, this function
-// must fork a new shim process.
-func (s *service) StartShim(ctx context.Context, opts shim.StartOpts) (string, error) {
-	cmd, err := newReexec(ctx, opts.ID, opts.Address)
-	if err != nil {
-		return "", err
-	}
-
-	address, err := shim.SocketAddress(ctx, opts.Address, opts.ID)
-	if err != nil {
-		return "", err
-	}
-	socket, err := shim.NewSocket(address)
-	if err != nil {
-		if !shim.SocketEaddrinuse(err) {
-			return "", err
-		}
-		if err := shim.RemoveSocket(address); err != nil {
-			return "", fmt.Errorf("remove already used socket: %w", err)
-		}
-		if socket, err = shim.NewSocket(address); err != nil {
-			return "", err
-		}
-	}
-	f, err := socket.File()
-	if err != nil {
-		return "", err
-	}
-	cmd.ExtraFiles = append(cmd.ExtraFiles, f)
-
-	if err := cmd.Start(); err != nil {
-		return "", err
-	}
-	defer func() {
-		if err != nil {
-			_ = shim.RemoveSocket(address)
-			cmd.Process.Kill()
-		}
-	}()
-	// make sure to wait after start
-	go cmd.Wait()
-	if err := shim.WritePidFile("shim.pid", cmd.Process.Pid); err != nil {
-		return "", err
-	}
-	if err := shim.WriteAddress("address", address); err != nil {
-		return "", err
-	}
-
-	return address, nil
-}
-
-// newReexec creates a new exec.Cmd for running the shim API
-func newReexec(ctx context.Context, id, containerdAddress string) (*exec.Cmd, error) {
-	ns, err := namespaces.NamespaceRequired(ctx)
-	if err != nil {
-		return nil, err
-	}
-	self, err := os.Executable()
-	if err != nil {
-		return nil, err
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	args := []string{
-		"-namespace", ns,
-		"-id", id,
-		"-address", containerdAddress,
-	}
-	cmd := exec.Command(self, args...)
-	cmd.Dir = cwd
-	cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		// Ensure a new process group is used so signals are not propagated by a calling shell
-		Setpgid: true,
-		Pgid:    0,
-	}
-	return cmd, nil
-}
-
-// Shutdown is called to allow the shim to exit.  Shutdown deletes resources
-// like the socket address and must cause the shim.Publisher to be closed so the
-// process exits.
+// Shutdown is called to allow the shim to exit.  It triggers the shutdown
+// service, whose registered callbacks close the event channel and remove the
+// shim's socket.
 func (s *service) Shutdown(ctx context.Context, req *taskAPI.ShutdownRequest) (*emptypb.Empty, error) {
 	log.G(ctx).WithField("req", req).Warn("SHUTDOWN")
-	s.cancel()
-	// shim.Publisher is closed after all events in s.events are processed
-	close(s.events)
-	if address, err := shim.ReadAddress("address"); err == nil {
-		_ = shim.RemoveSocket(address)
-	}
+	s.shutdown.Shutdown()
 	return empty, nil
-}
-
-// Cleanup is called to clean any remaining resources for the container and is
-// called through the `delete` subcommand rather than over ttrpc if containerd
-// is unable to reconnect to the shim. Cleanup should call runj delete but
-// importantly _not_ remove the shim's socket as that should happen in Shutdown.
-// Cleanup is a binary call that cleans up any resources used by the shim when
-// the service crashes; it is a fallback of Delete.
-func (s *service) Cleanup(ctx context.Context) (*taskAPI.DeleteResponse, error) {
-	opts, ok := ctx.Value(shim.OptsKey{}).(shim.Opts)
-	if !ok {
-		return nil, errors.New("failed to read opts")
-	}
-	return s.delete(ctx, opts.BundlePath)
 }
 
 // Delete a process or container.  When deleting a container, Delete should call
@@ -382,10 +293,7 @@ func (s *service) deleteAux(ctx context.Context, id string) (*taskAPI.DeleteResp
 // Create sets up the OCI bundle and invokes runj create
 func (s *service) Create(ctx context.Context, req *taskAPI.CreateTaskRequest) (*taskAPI.CreateTaskResponse, error) {
 	log.G(ctx).WithField("req", req).Warn("CREATE")
-	if req.ID != s.id {
-		log.G(ctx).WithField("reqID", req.ID).WithField("id", s.id).Error("mismatched IDs")
-		return nil, errdefs.ErrInvalidArgument
-	}
+	s.id = req.ID
 
 	s.setBundlePath(req.Bundle)
 
@@ -399,9 +307,9 @@ func (s *service) Create(ctx context.Context, req *taskAPI.CreateTaskRequest) (*
 		return nil, err
 	}
 
-	var mounts []process.Mount
+	var mounts []cmount.Mount
 	for _, m := range req.Rootfs {
-		mounts = append(mounts, process.Mount{
+		mounts = append(mounts, cmount.Mount{
 			Type:    m.Type,
 			Source:  m.Source,
 			Target:  m.Target,
