@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 func cleanup() error {
 	fmt.Println("Cleaning rootfs...")
 	if out, err := exec.Command("chflags", "-R", "noschg", fullRootfs).CombinedOutput(); err != nil {
-		fmt.Fprintf(os.Stderr, string(out))
+		fmt.Fprint(os.Stderr, string(out))
 		return err
 	}
 	return os.RemoveAll(fullRootfs)
