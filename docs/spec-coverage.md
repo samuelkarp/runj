@@ -60,7 +60,7 @@ cannot apply a configured property; closing that gap is itself an item below.
 * [x] `jail.ip4Addr`
 * [x] `jail.vnet`
 * [x] `jail.vnetInterfaces` (moved with `ifconfig(8)`, not set as a jail param)
-* [ ] `jail.ip6`, `jail.ip6Addr` - no IPv6 support
+* [x] `jail.ip6`, `jail.ip6Addr`
 * [ ] `jail.allow.*` - capability toggles (`setHostname`, `rawSockets`,
   `chflags`, `mount`, `quotas`, `socketAf`, `mlock`, `reservedPorts`, `suser`)
 * [ ] `freebsd.devices` - individual device nodes (only whole-`devfs` mounts

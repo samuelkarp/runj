@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHello(t *testing.T) {
@@ -41,6 +43,33 @@ func TestHostname(t *testing.T) {
 	hostname, err := os.Hostname()
 	assert.NoError(t, err, "failed to retrieve hostname")
 	fmt.Println(hostname)
+}
+
+// TestIP6Visible asserts that the IPv6 address the jail was configured with
+// (TEST_IP6ADDR) is visible on one of the jail's interfaces.  If the jail's
+// ip6.addr parameter never reached the kernel, the jail's network stack would
+// not expose the address and this fails.
+func TestIP6Visible(t *testing.T) {
+	want := net.ParseIP(os.Getenv("TEST_IP6ADDR"))
+	require.NotNil(t, want, "TEST_IP6ADDR must be a valid IP address")
+
+	addrs, err := net.InterfaceAddrs()
+	require.NoError(t, err, "failed to list interface addresses")
+
+	seen := make([]string, 0, len(addrs))
+	found := false
+	for _, a := range addrs {
+		ipnet, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		seen = append(seen, ipnet.IP.String())
+		// To4 returns nil for a genuine IPv6 address.
+		if ipnet.IP.To4() == nil && ipnet.IP.Equal(want) {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected IPv6 address %s visible in jail; saw %v", want, seen)
 }
 
 func TestLocalhostHTTPHello(t *testing.T) {

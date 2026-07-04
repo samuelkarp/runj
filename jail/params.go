@@ -13,6 +13,8 @@ type CreateParams struct {
 	Hostname string
 	IP4      string
 	IP4Addr  []string
+	IP6      string
+	IP6Addr  []string
 	VNet     string
 	// VNetInterface
 	// Deprecated: not used
@@ -95,6 +97,44 @@ func (c *CreateParams) iovec() ([]syscall.Iovec, error) {
 			return nil, err
 		}
 		iovec = append(iovec, ip4Addrio...)
+	}
+
+	if c.IP6 != "" {
+		var ip6 int32
+		switch c.IP6 {
+		case "disable":
+			ip6 = 0
+		case "new":
+			ip6 = 1
+		case "inherit":
+			ip6 = 2
+		default:
+			return nil, fmt.Errorf("jail: unknown IP6 type %q", c.IP6)
+		}
+		ip6io, err := int32Iovec("ip6", ip6)
+		if err != nil {
+			return nil, err
+		}
+		iovec = append(iovec, ip6io...)
+	}
+
+	if len(c.IP6Addr) > 0 {
+		ip6Addrs := make([]netip.Addr, 0)
+		for _, addr := range c.IP6Addr {
+			ip6Addr, err := netip.ParseAddr(addr)
+			if err != nil {
+				return nil, fmt.Errorf("jail: failed to parse %q as IPv6: %w", addr, err)
+			}
+			if !ip6Addr.Is6() || ip6Addr.Is4In6() {
+				return nil, fmt.Errorf("jail: invalid IP6 address %q", addr)
+			}
+			ip6Addrs = append(ip6Addrs, ip6Addr)
+		}
+		ip6Addrio, err := netIPIovec("ip6.addr", ip6Addrs)
+		if err != nil {
+			return nil, err
+		}
+		iovec = append(iovec, ip6Addrio...)
 	}
 
 	persist, err := nilIovec("persist")

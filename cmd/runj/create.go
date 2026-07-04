@@ -171,6 +171,8 @@ written`)
 		if ociConfig.FreeBSD != nil && ociConfig.FreeBSD.Jail != nil {
 			jailcfg.IP4 = string(ociConfig.FreeBSD.Jail.Ip4)
 			jailcfg.IP4Addr = ociConfig.FreeBSD.Jail.Ip4Addr
+			jailcfg.IP6 = string(ociConfig.FreeBSD.Jail.Ip6)
+			jailcfg.IP6Addr = ociConfig.FreeBSD.Jail.Ip6Addr
 			jailcfg.VNet = string(ociConfig.FreeBSD.Jail.Vnet)
 			jailcfg.VNetInterface = ociConfig.FreeBSD.Jail.VnetInterfaces
 		}

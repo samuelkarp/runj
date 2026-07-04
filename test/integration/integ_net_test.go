@@ -72,6 +72,35 @@ func TestHostIPv4Network(t *testing.T) {
 	}
 }
 
+// TestJailIP6 asserts IPv6 visibility inside the jail using the loopback
+// address ::1, which is always configured on lo0 and needs no interface setup.
+// Exercising a non-loopback IPv6 address would require binding it to a specific
+// interface via the jail.interface parameter, which runj does not yet
+// implement, so that case is not covered here.
+func TestJailIP6(t *testing.T) {
+	const addr = "::1"
+
+	spec := setupSimpleExitingJail(t)
+	spec.Process = &runtimespec.Process{
+		Args: []string{"/integ-inside", "-test.run", "TestIP6Visible", "-test.v"},
+		Env:  []string{"TEST_IP6ADDR=" + addr},
+	}
+	spec.FreeBSD = &runtimespec.FreeBSD{
+		Jail: &runtimespec.FreeBSDJail{
+			Ip6:     runtimespec.FreeBSDShareNew,
+			Ip6Addr: []string{addr},
+		},
+	}
+
+	stdout, stderr, err := runExitingJail(t, "integ-test-ip6", spec, 500*time.Millisecond)
+	assert.NoError(t, err)
+	assertJailPass(t, stdout, stderr)
+	if t.Failed() {
+		t.Log("STDOUT:", string(stdout))
+		t.Log("STDERR:", string(stderr))
+	}
+}
+
 func TestVNetBridge(t *testing.T) {
 	// TODO: IPAM
 	bridgeAddr := "172.31.255.1"

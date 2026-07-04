@@ -28,11 +28,21 @@ struct:
   page.
 * `ip4Addr` ([]string) - list of IPv4 addresses assigned to the jail.
   Equivalent to the `ip4.addr` field described in the `jail(8)` manual page.
+* `ip6` (string) - IPv6 mode.  Valid options are `new`, `inherit`, and
+  `disable`.  Equivalent to the `ip6` field described in the `jail(8)` manual
+  page.
+* `ip6Addr` ([]string) - list of IPv6 addresses assigned to the jail.
+  Equivalent to the `ip6.addr` field described in the `jail(8)` manual page.
 * `vnet` (string) - vnet mode.  Valid options are `new` and `inherit`.
   Equivalent to the `vnet` field described in the `jail(8)` manual page.
 * `vnetInterfaces` ([]string) - list of network interfaces assigned to the jail.
   Equivalent to the `vnet.interface` field described in the `jail(8)` manual
   page.
+
+For both IPv4 and IPv6, runj exposes only the address-family mode and the
+address list.  Other `jail(8)` sub-parameters — such as `ip6.saddrsel` and
+`ip4.saddrsel` — are not exposed, because the OCI `freebsd.jail` schema defines
+no fields for them.
 
 An example embedded in `config.json`:
 
@@ -46,6 +56,8 @@ An example embedded in `config.json`:
     "jail": {
       "ip4": "new",
       "ip4Addr": ["127.0.0.2"],
+      "ip6": "new",
+      "ip6Addr": ["::1"],
       "vnet": "new",
       "vnetInterfaces": ["epair0b"]
     }

@@ -117,6 +117,70 @@ func TestCreateParamsIovec(t *testing.T) {
 			name: "persist\x00",
 		}},
 	}, {
+		name: "ip6-network",
+		config: CreateParams{
+			Name:    "network",
+			Root:    "/tmp/test/network/root",
+			IP6:     "new",
+			IP6Addr: []string{"::1", "2001:db8::2"},
+		},
+		iovec: []fakeIovec{{
+			name: "name\x00",
+			val:  []byte("network\x00"),
+		}, {
+			name: "path\x00",
+			val:  []byte("/tmp/test/network/root\x00"),
+		}, {
+			name: "ip6\x00",
+			val:  []byte{1, 0, 0, 0},
+		}, {
+			name: "ip6.addr\x00",
+			val: []byte{
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+				0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
+			},
+		}, {
+			name: "persist\x00",
+		}},
+	}, {
+		name: "ip6-inherit",
+		config: CreateParams{
+			Name: "network",
+			Root: "/tmp/test/network/root",
+			IP6:  "inherit",
+		},
+		iovec: []fakeIovec{{
+			name: "name\x00",
+			val:  []byte("network\x00"),
+		}, {
+			name: "path\x00",
+			val:  []byte("/tmp/test/network/root\x00"),
+		}, {
+			name: "ip6\x00",
+			val:  []byte{2, 0, 0, 0},
+		}, {
+			name: "persist\x00",
+		}},
+	}, {
+		name: "ip6-disable",
+		config: CreateParams{
+			Name: "network",
+			Root: "/tmp/test/network/root",
+			IP6:  "disable",
+		},
+		iovec: []fakeIovec{{
+			name: "name\x00",
+			val:  []byte("network\x00"),
+		}, {
+			name: "path\x00",
+			val:  []byte("/tmp/test/network/root\x00"),
+		}, {
+			name: "ip6\x00",
+			val:  []byte{0, 0, 0, 0},
+		}, {
+			name: "persist\x00",
+		}},
+	}, {
 		name: "vnet",
 		config: CreateParams{
 			Name:          "vnet",
@@ -169,6 +233,27 @@ func TestCreateParamsIovec(t *testing.T) {
 			IP4:  "foobar",
 		},
 		err: errors.New(`jail: unknown IP4 type "foobar"`),
+	}, {
+		name: "ip6.addr-invalid",
+		config: CreateParams{
+			Name:    "ip6.addr-invalid",
+			IP6Addr: []string{"one"},
+		},
+		err: errors.New(`jail: failed to parse "one" as IPv6: ParseAddr("one"): unable to parse IP`),
+	}, {
+		name: "ip6.addr-not-ipv6",
+		config: CreateParams{
+			Name:    "ip6.addr-not-ipv6",
+			IP6Addr: []string{"127.0.0.1"},
+		},
+		err: errors.New(`jail: invalid IP6 address "127.0.0.1"`),
+	}, {
+		name: "ip6-invalid",
+		config: CreateParams{
+			Name: "ip6-invalid",
+			IP6:  "foobar",
+		},
+		err: errors.New(`jail: unknown IP6 type "foobar"`),
 	}, {
 		name: "vnet-invalid",
 		config: CreateParams{

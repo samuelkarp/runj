@@ -62,6 +62,16 @@ func TestCreateDelete(t *testing.T) {
 				},
 			},
 		},
+		// ipv6
+		{
+			Process: &runtimespec.Process{},
+			FreeBSD: &runtimespec.FreeBSD{
+				Jail: &runtimespec.FreeBSDJail{
+					Ip6:     runtimespec.FreeBSDShareNew,
+					Ip6Addr: []string{"::1"},
+				},
+			},
+		},
 		// vnet
 		{
 			Process: &runtimespec.Process{},
