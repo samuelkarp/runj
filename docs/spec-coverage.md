@@ -69,7 +69,7 @@ cannot apply a configured property; closing that gap is itself an item below.
 * [x] `jail.host` - UTS sharing mode
 * [ ] `jail.interface` - interface for `ip4Addr`/`ip6Addr`
 * [ ] `jail.sysvmsg`, `jail.sysvsem`, `jail.sysvshm` - SystemV IPC sharing
-* [ ] `jail.enforceStatfs` - mount visibility
+* [x] `jail.enforceStatfs` - mount visibility
 
 ## Resource limits
 

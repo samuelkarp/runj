@@ -15,6 +15,8 @@ type fakeIovec struct {
 	val  []byte
 }
 
+func intPtr(i int) *int { return &i }
+
 func TestCreateParamsIovec(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -233,6 +235,67 @@ func TestCreateParamsIovec(t *testing.T) {
 		}, {
 			name: "persist\x00",
 		}},
+	}, {
+		name: "enforce-statfs-0",
+		config: CreateParams{
+			Name:          "statfs",
+			Root:          "/tmp/test/statfs/root",
+			EnforceStatfs: intPtr(0),
+		},
+		iovec: []fakeIovec{{
+			name: "name\x00",
+			val:  []byte("statfs\x00"),
+		}, {
+			name: "path\x00",
+			val:  []byte("/tmp/test/statfs/root\x00"),
+		}, {
+			name: "enforce_statfs\x00",
+			val:  []byte{0, 0, 0, 0},
+		}, {
+			name: "persist\x00",
+		}},
+	}, {
+		name: "enforce-statfs-2",
+		config: CreateParams{
+			Name:          "statfs",
+			Root:          "/tmp/test/statfs/root",
+			EnforceStatfs: intPtr(2),
+		},
+		iovec: []fakeIovec{{
+			name: "name\x00",
+			val:  []byte("statfs\x00"),
+		}, {
+			name: "path\x00",
+			val:  []byte("/tmp/test/statfs/root\x00"),
+		}, {
+			name: "enforce_statfs\x00",
+			val:  []byte{2, 0, 0, 0},
+		}, {
+			name: "persist\x00",
+		}},
+	}, {
+		name: "enforce-statfs-nil",
+		config: CreateParams{
+			Name:          "statfs",
+			Root:          "/tmp/test/statfs/root",
+			EnforceStatfs: nil,
+		},
+		iovec: []fakeIovec{{
+			name: "name\x00",
+			val:  []byte("statfs\x00"),
+		}, {
+			name: "path\x00",
+			val:  []byte("/tmp/test/statfs/root\x00"),
+		}, {
+			name: "persist\x00",
+		}},
+	}, {
+		name: "enforce-statfs-invalid",
+		config: CreateParams{
+			Name:          "statfs",
+			EnforceStatfs: intPtr(3),
+		},
+		err: errors.New("jail: invalid enforce_statfs value 3 (must be 0, 1, or 2)"),
 	}, {
 		name: "vnet",
 		config: CreateParams{

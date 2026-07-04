@@ -20,6 +20,9 @@ type CreateParams struct {
 	// VNetInterface
 	// Deprecated: not used
 	VNetInterface []string
+	// EnforceStatfs controls mount visibility (0, 1, or 2); nil leaves the
+	// kernel default.
+	EnforceStatfs *int
 }
 
 func (c *CreateParams) iovec() ([]syscall.Iovec, error) {
@@ -156,6 +159,18 @@ func (c *CreateParams) iovec() ([]syscall.Iovec, error) {
 			return nil, err
 		}
 		iovec = append(iovec, ip6Addrio...)
+	}
+
+	if c.EnforceStatfs != nil {
+		v := *c.EnforceStatfs
+		if v < 0 || v > 2 {
+			return nil, fmt.Errorf("jail: invalid enforce_statfs value %d (must be 0, 1, or 2)", v)
+		}
+		esio, err := int32Iovec("enforce_statfs", int32(v))
+		if err != nil {
+			return nil, err
+		}
+		iovec = append(iovec, esio...)
 	}
 
 	persist, err := nilIovec("persist")

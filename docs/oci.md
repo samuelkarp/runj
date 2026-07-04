@@ -41,6 +41,16 @@ struct:
 * `vnetInterfaces` ([]string) - list of network interfaces assigned to the jail.
   Equivalent to the `vnet.interface` field described in the `jail(8)` manual
   page.
+* `enforceStatfs` (*int) - controls which mount points are visible to the jail
+  through `statfs(2)` and `getfsstat(2)`.  Valid values are `0` (all mount
+  points are visible), `1` (only mount points below the jail's root are
+  visible), and `2` (only the mount point where the jail's root is located is
+  visible).  Equivalent to the `enforce_statfs` field described in the `jail(8)`
+  manual page.  The field is a pointer so that an unset value is distinct from
+  an explicit `0`; when unset, runj passes no `enforce_statfs` parameter and the
+  kernel applies its default of `2`.  A value below `2` is also a prerequisite
+  for mounting file systems inside a jail (`jail(8)`'s `allow.mount` is only
+  effective when `enforce_statfs` is `0` or `1`).
 
 For both IPv4 and IPv6, runj exposes only the address-family mode and the
 address list.  Other `jail(8)` sub-parameters — such as `ip6.saddrsel` and
@@ -69,7 +79,8 @@ An example embedded in `config.json`:
       "ip6": "new",
       "ip6Addr": ["::1"],
       "vnet": "new",
-      "vnetInterfaces": ["epair0b"]
+      "vnetInterfaces": ["epair0b"],
+      "enforceStatfs": 1
     }
   }
 }
