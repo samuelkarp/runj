@@ -5,10 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"go.sbk.wtf/runj/runtimespec"
 )
 
 // redirectStateDir points the package's state directory at a temporary location
@@ -36,6 +35,15 @@ func TestOutput(t *testing.T) {
 	assert.Equal(t, 4422, out.PID)
 	// JID is internal state and is not part of the OCI output.
 	assert.Nil(t, out.Annotations)
+}
+
+func TestOutputOCIVersion(t *testing.T) {
+	// The bundle's declared version is honored.
+	withVersion := (&State{OCIVersion: "1.1.0-test"}).Output()
+	assert.Equal(t, "1.1.0-test", withVersion.OCIVersion)
+	// An unset version falls back to runj's supported version.
+	withoutVersion := (&State{}).Output()
+	assert.Equal(t, runtimespec.Version, withoutVersion.OCIVersion)
 }
 
 func TestCreateAndLoad(t *testing.T) {

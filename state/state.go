@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"go.sbk.wtf/runj/runtimespec"
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const stateFile = "state.json"
@@ -36,6 +36,8 @@ type State struct {
 	Bundle string
 	// PID is the primary process ID
 	PID int
+	// OCIVersion is the OCI runtime spec version the bundle declared
+	OCIVersion string
 }
 
 // Output is the expected output format for the state command
@@ -62,8 +64,15 @@ type Output struct {
 
 // Output converts the state to the "Output" format expected by hooks
 func (s *State) Output() Output {
+	// Report the version the bundle declared.  Fall back to runj's own
+	// supported version when the bundle did not declare one (or for state
+	// written before OCIVersion was persisted).
+	ociVersion := s.OCIVersion
+	if ociVersion == "" {
+		ociVersion = runtimespec.Version
+	}
 	return Output{
-		OCIVersion: runtimespec.Version,
+		OCIVersion: ociVersion,
 		ID:         s.ID,
 		Status:     string(s.Status),
 		PID:        s.PID,

@@ -43,7 +43,7 @@ cannot apply a configured property; closing that gap is itself an item below.
 * [x] `annotations` (forwarded to hooks)
 * [ ] `domainname`
 * [ ] error on unsupported configuration (see note above)
-* [ ] honor the bundle's `ociVersion` (runj emits its own constant in `state`)
+* [x] honor the bundle's `ociVersion`
 
 ## Hooks
 

@@ -138,6 +138,7 @@ written`)
 		if ociConfig.Process == nil {
 			return errors.New("OCI config Process is required")
 		}
+		s.OCIVersion = ociConfig.Version
 		rootPath := filepath.Join(bundle, "root")
 		if ociConfig.Root != nil && ociConfig.Root.Path != "" {
 			rootPath = ociConfig.Root.Path

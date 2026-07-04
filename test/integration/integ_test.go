@@ -134,6 +134,41 @@ func TestCreateDelete(t *testing.T) {
 	}
 }
 
+func TestStateOCIVersion(t *testing.T) {
+	// A version distinct from runj's own constant, to prove the bundle's
+	// version is reported rather than runj's.
+	const ociVersion = "1.1.0-test"
+
+	dir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name())
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "root"), 0755), "create root dir")
+
+	spec := runtimespec.Spec{
+		Version: ociVersion,
+		Process: &runtimespec.Process{},
+	}
+	configJSON, err := json.Marshal(spec)
+	require.NoError(t, err, "marshal config")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644), "write config")
+
+	const id = "integ-test-ociversion"
+	exec.Command("runj", "delete", id).Run() // best-effort: clear any leftover
+	t.Cleanup(func() { exec.Command("runj", "delete", id).Run() })
+
+	if out, err := exec.Command("runj", "create", id, dir).CombinedOutput(); err != nil {
+		t.Fatalf("runj create: %v: %s", err, out)
+	}
+
+	out, err := exec.Command("runj", "state", id).Output()
+	require.NoError(t, err, "runj state")
+	var st struct {
+		OCIVersion string `json:"ociVersion"`
+	}
+	require.NoError(t, json.Unmarshal(out, &st), "parse state output")
+	assert.Equal(t, ociVersion, st.OCIVersion, "state should report the bundle's ociVersion")
+}
+
 func TestJailHello(t *testing.T) {
 	spec := setupSimpleExitingJail(t)
 
