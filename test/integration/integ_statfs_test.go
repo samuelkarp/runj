@@ -68,3 +68,12 @@ func TestJailEnforceStatfsUnrestricted(t *testing.T) {
 	n := jailStatfsCount(t, "integ-test-statfs-0", 0)
 	assert.Equal(t, host, n, "enforce_statfs=0 should expose the host's entire mount table")
 }
+
+// TestJailEnforceStatfsRestricted confirms enforce_statfs=2 restricts the jail to
+// seeing only the filesystem its root resides on, even when the host mount table
+// holds more.
+func TestJailEnforceStatfsRestricted(t *testing.T) {
+	mountExtraHostFS(t)
+	n := jailStatfsCount(t, "integ-test-statfs-2", 2)
+	assert.Equal(t, 1, n, "enforce_statfs=2 should restrict the jail to its own root")
+}
