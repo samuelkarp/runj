@@ -164,9 +164,10 @@ written`)
 		}
 
 		jailcfg := &jail.CreateParams{
-			Name:     id,
-			Root:     rootPath,
-			Hostname: ociConfig.Hostname,
+			Name:       id,
+			Root:       rootPath,
+			Hostname:   ociConfig.Hostname,
+			Domainname: ociConfig.Domainname,
 		}
 		if ociConfig.FreeBSD != nil && ociConfig.FreeBSD.Jail != nil {
 			jailcfg.Host = string(ociConfig.FreeBSD.Jail.Host)

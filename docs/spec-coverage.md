@@ -41,7 +41,7 @@ cannot apply a configured property; closing that gap is itself an item below.
 * [x] `hostname`
 * [x] `mounts`
 * [x] `annotations` (forwarded to hooks)
-* [ ] `domainname`
+* [x] `domainname`
 * [ ] error on unsupported configuration (see note above)
 * [x] honor the bundle's `ociVersion`
 

@@ -81,6 +81,12 @@ func TestEnforceStatfsCount(t *testing.T) {
 	fmt.Println(n)
 }
 
+func TestDomainname(t *testing.T) {
+	domainname, err := unix.Sysctl("kern.domainname")
+	assert.NoError(t, err, "failed to retrieve domainname")
+	fmt.Println(domainname)
+}
+
 func TestLocalhostHTTPHello(t *testing.T) {
 	port := os.Getenv("TEST_PORT")
 	requestURL := fmt.Sprintf("http://127.0.0.1:%s/hello", port)

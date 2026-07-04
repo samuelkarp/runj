@@ -8,15 +8,16 @@ import (
 
 // CreateParams is a limited subset of the parameters available in jail.conf(5) for use with jail(8).
 type CreateParams struct {
-	Name     string
-	Root     string
-	Hostname string
-	Host     string
-	IP4      string
-	IP4Addr  []string
-	IP6      string
-	IP6Addr  []string
-	VNet     string
+	Name       string
+	Root       string
+	Hostname   string
+	Domainname string
+	Host       string
+	IP4        string
+	IP4Addr    []string
+	IP6        string
+	IP6Addr    []string
+	VNet       string
 	// VNetInterface
 	// Deprecated: not used
 	VNetInterface []string
@@ -48,6 +49,17 @@ func (c *CreateParams) iovec() ([]syscall.Iovec, error) {
 		iovec = append(iovec, hostname...)
 	}
 
+	// host.domainname sets the jail's YP/NIS domain.  Like host.hostname, it
+	// makes the kernel give the jail its own UTS information (host=new,
+	// PR_HOST), so the value is private to the jail.
+	if c.Domainname != "" {
+		domainname, err := stringIovec("host.domainname", c.Domainname)
+		if err != nil {
+			return nil, err
+		}
+		iovec = append(iovec, domainname...)
+	}
+
 	if c.Host != "" {
 		var host int32
 		switch c.Host {
@@ -56,6 +68,9 @@ func (c *CreateParams) iovec() ([]syscall.Iovec, error) {
 		case "inherit":
 			if c.Hostname != "" {
 				return nil, fmt.Errorf("jail: validation failure: cannot set Hostname %q with Host mode %q", c.Hostname, c.Host)
+			}
+			if c.Domainname != "" {
+				return nil, fmt.Errorf("jail: validation failure: cannot set Domainname %q with Host mode %q", c.Domainname, c.Host)
 			}
 			host = 2
 		default:

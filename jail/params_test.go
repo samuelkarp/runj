@@ -58,6 +58,25 @@ func TestCreateParamsIovec(t *testing.T) {
 			name: "persist\x00",
 		}},
 	}, {
+		name: "domainname",
+		config: CreateParams{
+			Name:       "domainname",
+			Root:       "/tmp/test/domainname/root",
+			Domainname: "test.domainname.example.com",
+		},
+		iovec: []fakeIovec{{
+			name: "name\x00",
+			val:  []byte("domainname\x00"),
+		}, {
+			name: "path\x00",
+			val:  []byte("/tmp/test/domainname/root\x00"),
+		}, {
+			name: "host.domainname\x00",
+			val:  []byte("test.domainname.example.com\x00"),
+		}, {
+			name: "persist\x00",
+		}},
+	}, {
 		name: "host-new",
 		config: CreateParams{
 			Name: "host",
@@ -110,6 +129,14 @@ func TestCreateParamsIovec(t *testing.T) {
 			Hostname: "test.hostname.example.com",
 		},
 		err: errors.New(`jail: validation failure: cannot set Hostname "test.hostname.example.com" with Host mode "inherit"`),
+	}, {
+		name: "host-inherit-domainname",
+		config: CreateParams{
+			Name:       "host-inherit-domainname",
+			Host:       "inherit",
+			Domainname: "test.domainname.example.com",
+		},
+		err: errors.New(`jail: validation failure: cannot set Domainname "test.domainname.example.com" with Host mode "inherit"`),
 	}, {
 		name: "ip4-network",
 		config: CreateParams{

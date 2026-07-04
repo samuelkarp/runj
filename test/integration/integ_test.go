@@ -52,6 +52,11 @@ func TestCreateDelete(t *testing.T) {
 			Hostname: "foo.bar.example.com",
 			Process:  &runtimespec.Process{},
 		},
+		// domainname
+		{
+			Domainname: "foo.bar.example.com",
+			Process:    &runtimespec.Process{},
+		},
 		// ipv4
 		{
 			Process: &runtimespec.Process{},
@@ -330,4 +335,55 @@ func TestJailHostInheritHostnameConflict(t *testing.T) {
 	out, err := exec.Command("runj", "create", id, dir).CombinedOutput()
 	require.Error(t, err, "runj create should reject host: inherit with a hostname: %s", out)
 	assert.Contains(t, string(out), "cannot set Hostname", "error should explain the conflict")
+}
+
+func TestJailHostInheritDomainnameConflict(t *testing.T) {
+	// host: inherit shares the host's UTS information, but specifying a
+	// domainname causes the kernel to give the jail its own UTS information
+	// instead (i.e., host: new). Rather than allowing the kernel
+	// silent-override behavior, runj explicitly rejects this case.
+	dir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name())
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "root"), 0755), "create root dir")
+
+	spec := runtimespec.Spec{
+		Domainname: "conflict.example",
+		Process:    &runtimespec.Process{},
+		FreeBSD: &runtimespec.FreeBSD{
+			Jail: &runtimespec.FreeBSDJail{Host: runtimespec.FreeBSDShareInherit},
+		},
+	}
+	configJSON, err := json.Marshal(spec)
+	require.NoError(t, err, "marshal config")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644), "write config")
+
+	id := "integ-test-host-inherit-domainname"
+	exec.Command("runj", "delete", id).Run() // best-effort: clear any leftover
+	t.Cleanup(func() { exec.Command("runj", "delete", id).Run() })
+
+	out, err := exec.Command("runj", "create", id, dir).CombinedOutput()
+	require.Error(t, err, "runj create should reject host: inherit with a domainname: %s", out)
+	assert.Contains(t, string(out), "cannot set Domainname", "error should explain the conflict")
+}
+
+func TestJailDomainname(t *testing.T) {
+	domainname := fmt.Sprintf("%s.example", t.Name())
+
+	spec := setupSimpleExitingJail(t)
+
+	spec.Domainname = domainname
+	spec.Process = &runtimespec.Process{
+		Args: []string{"/integ-inside", "-test.run", "TestDomainname"},
+	}
+
+	stdout, stderr, err := runExitingJail(t, "integ-test-domainname", spec, 500*time.Millisecond)
+	assert.NoError(t, err)
+	assertJailPass(t, stdout, stderr)
+	lines := strings.Split(string(stdout), "\n")
+	assert.Len(t, lines, 3, "should be exactly 3 lines of output")
+	assert.Equal(t, domainname, lines[0], "domainname should match")
+	if t.Failed() {
+		t.Log("STDOUT:", string(stdout))
+	}
 }

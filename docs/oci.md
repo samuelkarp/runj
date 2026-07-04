@@ -68,6 +68,7 @@ An example embedded in `config.json`:
 ```json
 {
   "ociVersion": "1.3.0",
+  "domainname": "example.com",
   "process": {
     // omitted
   },
@@ -121,6 +122,21 @@ An example `runj.ext.json`:
   }
 }
 ```
+# `hostname` and `domainname`
+
+The OCI runtime spec defines top-level `hostname` and `domainname` string
+fields.  runj maps them to the jail's `host.hostname` and `host.domainname`
+parameters described in the `jail(8)` manual page.  `domainname` sets the jail's
+YP/NIS domain, readable inside the jail through `getdomainname(3)` or the
+`kern.domainname` sysctl.
+
+Setting either field makes the jail maintain its own UTS information: the kernel
+sets the jail's `host` parameter to `new` (the `PR_HOST` flag), so the values
+are private to the jail rather than inherited from the host.  runj does not
+expose the `freebsd.jail.host` sharing mode, so a jail cannot both inherit the
+host's UTS information and set `hostname` or `domainname`; in `jail(8)` terms
+`host=inherit` conflicts with `host.hostname`/`host.domainname`.
+
 # `create`
 
 The `create` command is documented [in the
