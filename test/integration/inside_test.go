@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 func TestHello(t *testing.T) {
@@ -70,6 +71,14 @@ func TestIP6Visible(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "expected IPv6 address %s visible in jail; saw %v", want, seen)
+}
+
+// TestEnforceStatfsCount prints the number of filesystems visible to the jail
+// via getfsstat(2).  enforce_statfs restricts this count.
+func TestEnforceStatfsCount(t *testing.T) {
+	n, err := unix.Getfsstat(nil, unix.MNT_NOWAIT)
+	assert.NoError(t, err, "getfsstat")
+	fmt.Println(n)
 }
 
 func TestLocalhostHTTPHello(t *testing.T) {
