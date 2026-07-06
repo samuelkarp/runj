@@ -11,6 +11,7 @@ type CreateParams struct {
 	Name     string
 	Root     string
 	Hostname string
+	Host     string
 	IP4      string
 	IP4Addr  []string
 	IP6      string
@@ -42,6 +43,26 @@ func (c *CreateParams) iovec() ([]syscall.Iovec, error) {
 			return nil, err
 		}
 		iovec = append(iovec, hostname...)
+	}
+
+	if c.Host != "" {
+		var host int32
+		switch c.Host {
+		case "new":
+			host = 1
+		case "inherit":
+			if c.Hostname != "" {
+				return nil, fmt.Errorf("jail: validation failure: cannot set Hostname %q with Host mode %q", c.Hostname, c.Host)
+			}
+			host = 2
+		default:
+			return nil, fmt.Errorf("jail: unknown Host type %q", c.Host)
+		}
+		hostio, err := int32Iovec("host", host)
+		if err != nil {
+			return nil, err
+		}
+		iovec = append(iovec, hostio...)
 	}
 
 	if c.VNet != "" {

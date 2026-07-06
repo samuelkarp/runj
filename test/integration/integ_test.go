@@ -258,3 +258,76 @@ func TestJailHostname(t *testing.T) {
 		t.Log("STDOUT:", string(stdout))
 	}
 }
+
+func TestJailHostMode(t *testing.T) {
+	// jls reports the host jailsys mode the kernel recorded for the jail.
+	// A jail defaults to inherit, so a jail reporting new confirms the
+	// host=new parameter reached the kernel.  A hostname read inside the
+	// jail cannot tell the modes apart: without host.hostname every mode
+	// reports the host's hostname.
+	modes := []runtimespec.FreeBSDSharing{
+		runtimespec.FreeBSDShareNew,
+		runtimespec.FreeBSDShareInherit,
+	}
+	for _, mode := range modes {
+		t.Run(string(mode), func(t *testing.T) {
+			name := strings.ReplaceAll(t.Name(), "/", "-")
+			dir, err := os.MkdirTemp("", "runj-integ-test-"+name)
+			require.NoError(t, err)
+			t.Cleanup(func() { os.RemoveAll(dir) })
+			require.NoError(t, os.MkdirAll(filepath.Join(dir, "root"), 0755), "create root dir")
+
+			spec := runtimespec.Spec{
+				Process: &runtimespec.Process{},
+				FreeBSD: &runtimespec.FreeBSD{
+					Jail: &runtimespec.FreeBSDJail{Host: mode},
+				},
+			}
+			configJSON, err := json.Marshal(spec)
+			require.NoError(t, err, "marshal config")
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644), "write config")
+
+			id := "integ-test-host-" + string(mode)
+			exec.Command("runj", "delete", id).Run() // best-effort: clear any leftover
+			t.Cleanup(func() { exec.Command("runj", "delete", id).Run() })
+
+			if out, err := exec.Command("runj", "create", id, dir).CombinedOutput(); err != nil {
+				t.Fatalf("runj create: %v: %s", err, out)
+			}
+
+			out, err := exec.Command("jls", "-j", id, "host").CombinedOutput()
+			require.NoError(t, err, "jls -j %s host: %s", id, out)
+			assert.Equal(t, string(mode), strings.TrimSpace(string(out)), "jls should report the configured host mode")
+		})
+	}
+}
+
+func TestJailHostInheritHostnameConflict(t *testing.T) {
+	// host: inherit shares the host's UTS information, but specifying a
+	// hostname causes the kernel to give the jail its own UTS information
+	// instead (i.e., host: new). Rather than allowing the kernel
+	// silent-override behavior, runj explicitly rejects this case.
+	dir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name())
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "root"), 0755), "create root dir")
+
+	spec := runtimespec.Spec{
+		Hostname: "conflict.example",
+		Process:  &runtimespec.Process{},
+		FreeBSD: &runtimespec.FreeBSD{
+			Jail: &runtimespec.FreeBSDJail{Host: runtimespec.FreeBSDShareInherit},
+		},
+	}
+	configJSON, err := json.Marshal(spec)
+	require.NoError(t, err, "marshal config")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644), "write config")
+
+	id := "integ-test-host-inherit-hostname"
+	exec.Command("runj", "delete", id).Run() // best-effort: clear any leftover
+	t.Cleanup(func() { exec.Command("runj", "delete", id).Run() })
+
+	out, err := exec.Command("runj", "create", id, dir).CombinedOutput()
+	require.Error(t, err, "runj create should reject host: inherit with a hostname: %s", out)
+	assert.Contains(t, string(out), "cannot set Hostname", "error should explain the conflict")
+}

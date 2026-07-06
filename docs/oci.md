@@ -23,6 +23,9 @@ loaded from `config.json`.
 
 runj reads the following fields from the OCI runtime spec's `freebsd.jail`
 struct:
+* `host` (string) - UTS sharing mode, covering the hostname, domainname, host
+  id, and host uuid.  Valid options are `new` and `inherit`.  Equivalent to the
+  `host` field described in the `jail(8)` manual page.
 * `ip4` (string) - IPv4 mode.  Valid options are `new`, `inherit`, and
   `disable`.  Equivalent to the `ip4` field described in the `jail(8)` manual
   page.
@@ -44,6 +47,12 @@ address list.  Other `jail(8)` sub-parameters — such as `ip6.saddrsel` and
 `ip4.saddrsel` — are not exposed, because the OCI `freebsd.jail` schema defines
 no fields for them.
 
+The `host` field sets the mode only.  runj takes the `host.hostname`
+sub-parameter from the spec's top-level `hostname` field.  Setting
+`host:inherit` and providing a value for `hostname` is invalid and is rejected
+by runj.  The `host.domainname`, `host.hostid`, and `host.hostuuid`
+sub-parameters are unspecified in the OCI `freebsd.jail` schema.
+
 An example embedded in `config.json`:
 
 ```json
@@ -54,6 +63,7 @@ An example embedded in `config.json`:
   },
   "freebsd": {
     "jail": {
+      "host": "new",
       "ip4": "new",
       "ip4Addr": ["127.0.0.2"],
       "ip6": "new",

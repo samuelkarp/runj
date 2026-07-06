@@ -66,7 +66,7 @@ cannot apply a configured property; closing that gap is itself an item below.
 * [ ] `freebsd.devices` - individual device nodes (only whole-`devfs` mounts
   work today)
 * [ ] `jail.parent` - parent jail / shared vnet
-* [ ] `jail.host` - UTS sharing mode
+* [x] `jail.host` - UTS sharing mode
 * [ ] `jail.interface` - interface for `ip4Addr`/`ip6Addr`
 * [ ] `jail.sysvmsg`, `jail.sysvsem`, `jail.sysvshm` - SystemV IPC sharing
 * [ ] `jail.enforceStatfs` - mount visibility

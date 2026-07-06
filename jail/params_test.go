@@ -56,6 +56,59 @@ func TestCreateParamsIovec(t *testing.T) {
 			name: "persist\x00",
 		}},
 	}, {
+		name: "host-new",
+		config: CreateParams{
+			Name: "host",
+			Root: "/tmp/test/host/root",
+			Host: "new",
+		},
+		iovec: []fakeIovec{{
+			name: "name\x00",
+			val:  []byte("host\x00"),
+		}, {
+			name: "path\x00",
+			val:  []byte("/tmp/test/host/root\x00"),
+		}, {
+			name: "host\x00",
+			val:  []byte{1, 0, 0, 0},
+		}, {
+			name: "persist\x00",
+		}},
+	}, {
+		name: "host-inherit",
+		config: CreateParams{
+			Name: "host",
+			Root: "/tmp/test/host/root",
+			Host: "inherit",
+		},
+		iovec: []fakeIovec{{
+			name: "name\x00",
+			val:  []byte("host\x00"),
+		}, {
+			name: "path\x00",
+			val:  []byte("/tmp/test/host/root\x00"),
+		}, {
+			name: "host\x00",
+			val:  []byte{2, 0, 0, 0},
+		}, {
+			name: "persist\x00",
+		}},
+	}, {
+		name: "host-invalid",
+		config: CreateParams{
+			Name: "host-invalid",
+			Host: "disable",
+		},
+		err: errors.New(`jail: unknown Host type "disable"`),
+	}, {
+		name: "host-inherit-hostname",
+		config: CreateParams{
+			Name:     "host-inherit-hostname",
+			Host:     "inherit",
+			Hostname: "test.hostname.example.com",
+		},
+		err: errors.New(`jail: validation failure: cannot set Hostname "test.hostname.example.com" with Host mode "inherit"`),
+	}, {
 		name: "ip4-network",
 		config: CreateParams{
 			Name:    "network",

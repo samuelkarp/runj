@@ -169,6 +169,7 @@ written`)
 			Hostname: ociConfig.Hostname,
 		}
 		if ociConfig.FreeBSD != nil && ociConfig.FreeBSD.Jail != nil {
+			jailcfg.Host = string(ociConfig.FreeBSD.Jail.Host)
 			jailcfg.IP4 = string(ociConfig.FreeBSD.Jail.Ip4)
 			jailcfg.IP4Addr = ociConfig.FreeBSD.Jail.Ip4Addr
 			jailcfg.IP6 = string(ociConfig.FreeBSD.Jail.Ip6)
