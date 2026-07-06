@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -45,6 +46,9 @@ func TestMain(m *testing.M) {
 
 	baseCache = filepath.Join(os.TempDir(), "runj-integ-test-cache", "base")
 	fullRootfs = filepath.Join(os.TempDir(), "runj-integ-test-cache", "rootfs")
+	// Sweep before prepareRootfs: a still-running leftover jail can hold the
+	// rootfs busy and block its removal, so orphaned jails are removed first.
+	sweepIntegLeftovers()
 	if err := prepareRootfs(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to prepare rootfs: %v\n", err)
 		os.Exit(1)
@@ -58,6 +62,189 @@ func TestMain(m *testing.M) {
 
 func cleanup() error {
 	fmt.Println("Cleaning rootfs...")
+	return removeRootfs()
+}
+
+const (
+	// integStateDir is where runj stores per-container state.  It mirrors the
+	// default in state/dir.go; the sweep reads it to find leaked state.
+	integStateDir = "/var/lib/runj/jails"
+
+	// integTestIfGroup is the ifconfig(8) group the vnet tests put the epair
+	// and bridge interfaces they create into, so the sweep can tell them apart
+	// from unrelated interfaces.
+	integTestIfGroup = "integ-test"
+
+	// integTestNATTable is the pf table the vnet NAT test populates.
+	integTestNATTable = "test-vnet-bridge-nat"
+
+	// integTestJailPrefix is the container-ID prefix used for all integration
+	// tests.  New integration tests should use this same prefix.
+	integTestJailPrefix = "integ-test-"
+)
+
+// isIntegTestJail reports whether name follows an integration-test container-ID
+// convention.
+func isIntegTestJail(name string) bool {
+	return strings.HasPrefix(name, integTestJailPrefix)
+}
+
+// sweepIntegLeftovers removes the kernel jails, runj state directories, network
+// interfaces, and pf nat state left by an interrupted integ-test.  A killed
+// test never reaches a test's cleanup, orphaning the root-owned kernel jail and
+// its state directory under /var/lib/runj/jails, plus the epair/bridge
+// interfaces and pf nat state the vnet tests set up.  Those wedge the next run:
+// `jail "…" already exists`, `state.json: file exists`, or setupPFNAT's
+// precondition that no nat rule already exists.
+//
+// Each step is best-effort and scoped to an integration-test marker (a jail-ID
+// prefix, the integ-test ifconfig group, or the vnet nat table), so the sweep
+// never touches unrelated state.  It logs what it removes and never fails the
+// run; off root or off FreeBSD the underlying commands simply error and are
+// logged.
+func sweepIntegLeftovers() {
+	// Jails first: a still-running jail holds its state directory (and possibly
+	// the rootfs) busy and owns a vnet interface, so it must go before the
+	// state, interface, and rootfs steps.
+	sweepIntegJails()
+	sweepIntegStateDirs()
+	// Interfaces after jails, so no live jail still holds a vnet interface.
+	sweepIntegInterfaces()
+	sweepIntegPFNAT()
+}
+
+// sweepIntegJails removes live integration-test kernel jails.
+func sweepIntegJails() {
+	out, err := exec.Command("jls", "name").CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sweep: jls failed, skipping jail sweep: %v: %s\n", err, out)
+		return
+	}
+	for _, name := range strings.Fields(string(out)) {
+		if !isIntegTestJail(name) {
+			continue
+		}
+		fmt.Printf("sweep: removing leftover jail %q\n", name)
+		if o, err := exec.Command("jail", "-r", name).CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "sweep: jail -r %q failed: %v: %s\n", name, err, o)
+		}
+	}
+}
+
+// sweepIntegStateDirs removes leftover runj state directories.  A killed run
+// leaves the state dir even when the kernel jail is already gone.
+func sweepIntegStateDirs() {
+	entries, err := os.ReadDir(integStateDir)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "sweep: reading %s failed, skipping state sweep: %v\n", integStateDir, err)
+		}
+		return
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if !isIntegTestJail(name) {
+			continue
+		}
+		dir := filepath.Join(integStateDir, name)
+		fmt.Printf("sweep: removing leftover state dir %q\n", dir)
+		if o, err := exec.Command("chflags", "-R", "noschg", dir).CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "sweep: chflags %q failed: %v: %s\n", dir, err, o)
+		}
+		if err := os.RemoveAll(dir); err != nil {
+			fmt.Fprintf(os.Stderr, "sweep: removing %q failed: %v\n", dir, err)
+		}
+	}
+}
+
+// sweepIntegInterfaces destroys the epair and bridge interfaces the vnet tests
+// create.  setupEpairBridge tags them into the integTestIfGroup ifconfig group,
+// so `ifconfig -g` enumerates exactly the test's interfaces and nothing else;
+// the caller removes jails first, so no live jail still holds one.
+func sweepIntegInterfaces() {
+	out, err := exec.Command("ifconfig", "-g", integTestIfGroup).Output()
+	if err != nil {
+		// No interface belongs to the group, or ifconfig is unavailable;
+		// nothing to sweep.
+		return
+	}
+	for _, iface := range strings.Fields(string(out)) {
+		fmt.Printf("sweep: destroying leftover interface %q\n", iface)
+		if o, err := exec.Command("ifconfig", iface, "destroy").CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "sweep: ifconfig %q destroy failed: %v: %s\n", iface, err, o)
+		}
+	}
+}
+
+// sweepIntegPFNAT removes the pf nat state the vnet NAT test leaves behind.
+// setupPFNAT loads a nat ruleset and populates integTestNATTable, and refuses
+// to run while any nat rule already exists, so an interrupted NAT test would
+// fail the next run.
+func sweepIntegPFNAT() {
+	if err := exec.Command("pfctl", "-t", integTestNATTable, "-T", "show").Run(); err != nil {
+		// Table absent, or pf disabled/unavailable: nothing of ours to clean.
+		return
+	}
+	fmt.Printf("sweep: flushing leftover pf nat and table %q\n", integTestNATTable)
+	if o, err := exec.Command("pfctl", "-F", "nat").CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "sweep: pfctl -F nat failed: %v: %s\n", err, o)
+	}
+	if o, err := exec.Command("pfctl", "-t", integTestNATTable, "-T", "kill").CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "sweep: pfctl -T kill %q failed: %v: %s\n", integTestNATTable, err, o)
+	}
+}
+
+// mountpointsUnder parses `mount -p` output and returns the mountpoints at or
+// below dir, deepest first so a nested mount is unmounted before its parent.
+func mountpointsUnder(mountOutput, dir string) []string {
+	prefix := dir + string(os.PathSeparator)
+	var points []string
+	for _, line := range strings.Split(mountOutput, "\n") {
+		// mount -p prints fstab-style lines: "device mountpoint fstype ...".
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		if mp := fields[1]; mp == dir || strings.HasPrefix(mp, prefix) {
+			points = append(points, mp)
+		}
+	}
+	sort.Slice(points, func(i, j int) bool { return len(points[i]) > len(points[j]) })
+	return points
+}
+
+// unmountUnder unmounts every filesystem mounted at or below dir, deepest
+// first.  An interrupted integ-test leaves runj's per-jail mounts in place
+// (setupFullExitingJail mounts devfs into the rootfs), because runj only
+// unmounts them during `runj delete`.  A leftover mount blocks reclaiming the
+// rootfs: chflags -R descends into it and RemoveAll cannot remove the busy
+// mountpoint.
+func unmountUnder(dir string) {
+	out, err := exec.Command("mount", "-p").CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "reclaim: mount -p failed, skipping unmount: %v: %s\n", err, out)
+		return
+	}
+	for _, mountpoint := range mountpointsUnder(string(out), dir) {
+		fmt.Printf("reclaim: unmounting leftover mount %q\n", mountpoint)
+		if o, err := exec.Command("umount", mountpoint).CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "reclaim: umount %q failed, retrying with -f: %v: %s\n", mountpoint, err, o)
+			if o, err := exec.Command("umount", "-f", mountpoint).CombinedOutput(); err != nil {
+				fmt.Fprintf(os.Stderr, "reclaim: umount -f %q failed: %v: %s\n", mountpoint, err, o)
+			}
+		}
+	}
+}
+
+// removeRootfs removes the extracted rootfs.  It is a no-op when the directory
+// is absent and best-effort otherwise: it unmounts anything left mounted under
+// the rootfs, then clears the schg flag recursively (the extracted base system
+// carries immutable files) before removing the tree.
+func removeRootfs() error {
+	if _, err := os.Stat(fullRootfs); os.IsNotExist(err) {
+		return nil
+	}
+	unmountUnder(fullRootfs)
 	if out, err := exec.Command("chflags", "-R", "noschg", fullRootfs).CombinedOutput(); err != nil {
 		fmt.Fprint(os.Stderr, string(out))
 		return err
@@ -66,8 +253,11 @@ func cleanup() error {
 }
 
 func prepareRootfs() error {
-	if _, err := os.Stat(fullRootfs); err == nil {
-		return fmt.Errorf("prepare: %q must not exist", fullRootfs)
+	// An interrupted integ-test never reaches cleanup(), orphaning the
+	// extracted rootfs.  Reclaim it here rather than requiring a manual root
+	// cleanup.
+	if err := removeRootfs(); err != nil {
+		return err
 	}
 	if err := os.MkdirAll(baseCache, 0o755); err != nil {
 		return err
@@ -112,6 +302,73 @@ func prepareRootfs() error {
 	out, err := exec.Command("tar", "--directory", fullRootfs, "-xJf", cacheFile).CombinedOutput()
 	fmt.Println(string(out))
 	return err
+}
+
+// TestRemoveRootfsReclaimsStale proves the reclaim path prepareRootfs relies
+// on: removeRootfs deletes a leftover rootfs from an interrupted run, and a
+// second call on an absent directory is a no-op.  It swaps the fullRootfs
+// global for a temporary directory so it does not touch the real rootfs
+// TestMain prepared.
+func TestRemoveRootfsReclaimsStale(t *testing.T) {
+	realRootfs := fullRootfs
+	t.Cleanup(func() { fullRootfs = realRootfs })
+	fullRootfs = filepath.Join(t.TempDir(), "rootfs")
+
+	require.NoError(t, os.MkdirAll(fullRootfs, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(fullRootfs, "file"), []byte("stale"), 0o644))
+
+	require.NoError(t, removeRootfs(), "reclaim stale rootfs")
+	_, err := os.Stat(fullRootfs)
+	assert.True(t, os.IsNotExist(err), "rootfs should be gone after reclaim")
+
+	assert.NoError(t, removeRootfs(), "reclaim of absent rootfs should be a no-op")
+}
+
+func TestIsIntegTestJail(t *testing.T) {
+	for _, name := range []string{
+		"integ-test-hello",
+		"integ-test-hooks",
+		"integ-test-ociversion",
+		"integ-test-localhost-http",
+		"integ-test-vnet-bridge",
+		"integ-test-create-delete-0",
+		"integ-test-create-delete-3",
+	} {
+		assert.True(t, isIntegTestJail(name), "%q should match", name)
+	}
+	for _, name := range []string{
+		"",
+		"foo",
+		"smoke-hello",
+		"smoke",
+		"my-integ-test-hello",  // contains but does not begin with the prefix
+		"test-create-delete-1", // old pattern
+		"integtest-hello",      // missing the hyphen
+	} {
+		assert.False(t, isIntegTestJail(name), "%q should not match", name)
+	}
+}
+
+// TestMountpointsUnder proves removeRootfs selects exactly the mounts at or
+// below the rootfs (so the devfs setupFullExitingJail leaves behind is
+// unmounted), returns them deepest first, and ignores mounts elsewhere and a
+// sibling whose path merely shares the rootfs as a string prefix.
+func TestMountpointsUnder(t *testing.T) {
+	const dir = "/tmp/runj-integ-test-cache/rootfs"
+	mountOutput := strings.Join([]string{
+		"/dev/gpt/rootfs / ufs rw 1 1",
+		"devfs " + dir + "/dev devfs rw 0 0",
+		"tmpfs " + dir + " tmpfs rw 0 0",
+		"nullfs " + dir + "/volume/nested nullfs rw 0 0",
+		"devfs /tmp/runj-integ-test-cache/rootfs-other/dev devfs rw 0 0", // prefix string, not under dir
+		"", // trailing blank line
+	}, "\n")
+
+	assert.Equal(t, []string{
+		dir + "/volume/nested",
+		dir + "/dev",
+		dir,
+	}, mountpointsUnder(mountOutput, dir))
 }
 
 func downloadImage(machine, arch, version string, f *os.File) error {

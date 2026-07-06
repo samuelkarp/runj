@@ -170,8 +170,7 @@ func setupPFNAT(t *testing.T, jailAddr string) {
 	}
 	require.NotEmpty(t, defaultInterface, "failed to find default interface")
 	dir := t.TempDir()
-	const natTable = "test-vnet-bridge-nat"
-	nat := fmt.Sprintf("nat on %s inet from <%s> to any -> (%s)\n", defaultInterface, natTable, defaultInterface)
+	nat := fmt.Sprintf("nat on %s inet from <%s> to any -> (%s)\n", defaultInterface, integTestNATTable, defaultInterface)
 	t.Log(nat)
 	err = os.WriteFile(filepath.Join(dir, "nat.conf"), []byte(nat), 0o644)
 	require.NoError(t, err, "failed to write nat.conf")
@@ -182,10 +181,10 @@ func setupPFNAT(t *testing.T, jailAddr string) {
 		require.NoError(t, err, "failed to flush nat rules: %v", string(out))
 	})
 
-	err = exec.Command("pfctl", "-t", natTable, "-T", "add", jailAddr).Run()
+	err = exec.Command("pfctl", "-t", integTestNATTable, "-T", "add", jailAddr).Run()
 	require.NoError(t, err, "failed to add jail address to pf table")
 	t.Cleanup(func() {
-		err = exec.Command("pfctl", "-t", natTable, "-T", "delete", jailAddr).Run()
+		err = exec.Command("pfctl", "-t", integTestNATTable, "-T", "delete", jailAddr).Run()
 		require.NoError(t, err, "failed to remove jail address from pf table")
 	})
 }
@@ -195,6 +194,11 @@ func setupEpairBridge(t *testing.T, bridgeAddr string, mask string) (string, str
 	require.NoError(t, err, "failed to create epair: %q", string(out))
 	epairA := strings.TrimSpace(string(out))
 	epairB := epairA[:len(epairA)-1] + "b"
+	// Tag the interface into the integ-test group so an interrupted run's
+	// leftover can be swept by group (see sweepIntegInterfaces) without risking
+	// an unrelated interface.
+	err = exec.Command("ifconfig", epairA, "group", integTestIfGroup).Run()
+	require.NoError(t, err, "failed to add %q to group %q", epairA, integTestIfGroup)
 	t.Cleanup(func() {
 		err = exec.Command("ifconfig", epairA, "destroy").Run()
 		require.NoError(t, err, "failed to destroy %q", epairA)
@@ -202,9 +206,11 @@ func setupEpairBridge(t *testing.T, bridgeAddr string, mask string) (string, str
 	out, err = exec.Command("ifconfig", "bridge", "create").Output()
 	require.NoError(t, err, "failed to create bridge: %q", string(out))
 	bridge := strings.TrimSpace(string(out))
+	err = exec.Command("ifconfig", bridge, "group", integTestIfGroup).Run()
+	require.NoError(t, err, "failed to add %q to group %q", bridge, integTestIfGroup)
 	t.Cleanup(func() {
 		err = exec.Command("ifconfig", bridge, "destroy").Run()
-		require.NoError(t, err, "failed to destroy %q", epairA)
+		require.NoError(t, err, "failed to destroy %q", bridge)
 	})
 	err = exec.Command("ifconfig", bridge, "inet", bridgeAddr+"/"+mask).Run()
 	require.NoError(t, err, "failed to set bridge address %s/%s", bridgeAddr, mask)

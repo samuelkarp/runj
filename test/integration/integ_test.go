@@ -103,7 +103,7 @@ func TestCreateDelete(t *testing.T) {
 			err = os.WriteFile(filepath.Join(bundleDir, "config.json"), configJSON, 0644)
 			require.NoError(t, err, "write config")
 
-			id := "test-create-delete-" + strconv.Itoa(i)
+			id := "integ-test-create-delete-" + strconv.Itoa(i)
 			var cmd *exec.Cmd
 			switch i % 3 {
 			case 0:
