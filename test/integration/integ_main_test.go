@@ -432,6 +432,27 @@ func assertJailPass(t *testing.T, stdout, stderr []byte) {
 	assert.Equal(t, "PASS", lines[len(lines)-2], "second to last line of output should be PASS")
 }
 
+// createJail writes spec to a fresh bundle and runs `runj create` for id,
+// returning the command's combined output and error.  It suits tests that assert
+// on the outcome of create itself, such as validation rejections.  The bundle
+// and the jail are removed when the test ends, whether or not create succeeded.
+func createJail(t *testing.T, id string, spec runtimespec.Spec) ([]byte, error) {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "runj-integ-test-"+strings.ReplaceAll(t.Name(), "/", "-"))
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "root"), 0755), "create root dir")
+
+	configJSON, err := json.Marshal(spec)
+	require.NoError(t, err, "marshal config")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644), "write config")
+
+	exec.Command("runj", "delete", id).Run() // best-effort: clear any leftover
+	t.Cleanup(func() { exec.Command("runj", "delete", id).Run() })
+
+	return exec.Command("runj", "create", id, dir).CombinedOutput()
+}
+
 // runExitingJail is a helper that takes a spec as input, sets up a bundle
 // starts a jail, collects its output, and waits for the jail's entrypoint to
 // exit.  It can be used in tests where the entrypoint embeds the test

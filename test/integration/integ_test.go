@@ -312,11 +312,6 @@ func TestJailHostInheritHostnameConflict(t *testing.T) {
 	// hostname causes the kernel to give the jail its own UTS information
 	// instead (i.e., host: new). Rather than allowing the kernel
 	// silent-override behavior, runj explicitly rejects this case.
-	dir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name())
-	require.NoError(t, err)
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "root"), 0755), "create root dir")
-
 	spec := runtimespec.Spec{
 		Hostname: "conflict.example",
 		Process:  &runtimespec.Process{},
@@ -324,15 +319,7 @@ func TestJailHostInheritHostnameConflict(t *testing.T) {
 			Jail: &runtimespec.FreeBSDJail{Host: runtimespec.FreeBSDShareInherit},
 		},
 	}
-	configJSON, err := json.Marshal(spec)
-	require.NoError(t, err, "marshal config")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644), "write config")
-
-	id := "integ-test-host-inherit-hostname"
-	exec.Command("runj", "delete", id).Run() // best-effort: clear any leftover
-	t.Cleanup(func() { exec.Command("runj", "delete", id).Run() })
-
-	out, err := exec.Command("runj", "create", id, dir).CombinedOutput()
+	out, err := createJail(t, "integ-test-host-inherit-hostname", spec)
 	require.Error(t, err, "runj create should reject host: inherit with a hostname: %s", out)
 	assert.Contains(t, string(out), "cannot set Hostname", "error should explain the conflict")
 }
@@ -342,11 +329,6 @@ func TestJailHostInheritDomainnameConflict(t *testing.T) {
 	// domainname causes the kernel to give the jail its own UTS information
 	// instead (i.e., host: new). Rather than allowing the kernel
 	// silent-override behavior, runj explicitly rejects this case.
-	dir, err := os.MkdirTemp("", "runj-integ-test-"+t.Name())
-	require.NoError(t, err)
-	t.Cleanup(func() { os.RemoveAll(dir) })
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "root"), 0755), "create root dir")
-
 	spec := runtimespec.Spec{
 		Domainname: "conflict.example",
 		Process:    &runtimespec.Process{},
@@ -354,15 +336,7 @@ func TestJailHostInheritDomainnameConflict(t *testing.T) {
 			Jail: &runtimespec.FreeBSDJail{Host: runtimespec.FreeBSDShareInherit},
 		},
 	}
-	configJSON, err := json.Marshal(spec)
-	require.NoError(t, err, "marshal config")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644), "write config")
-
-	id := "integ-test-host-inherit-domainname"
-	exec.Command("runj", "delete", id).Run() // best-effort: clear any leftover
-	t.Cleanup(func() { exec.Command("runj", "delete", id).Run() })
-
-	out, err := exec.Command("runj", "create", id, dir).CombinedOutput()
+	out, err := createJail(t, "integ-test-host-inherit-domainname", spec)
 	require.Error(t, err, "runj create should reject host: inherit with a domainname: %s", out)
 	assert.Contains(t, string(out), "cannot set Domainname", "error should explain the conflict")
 }
