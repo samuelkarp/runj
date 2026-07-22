@@ -276,27 +276,14 @@ func TestJailHostMode(t *testing.T) {
 	}
 	for _, mode := range modes {
 		t.Run(string(mode), func(t *testing.T) {
-			name := strings.ReplaceAll(t.Name(), "/", "-")
-			dir, err := os.MkdirTemp("", "runj-integ-test-"+name)
-			require.NoError(t, err)
-			t.Cleanup(func() { os.RemoveAll(dir) })
-			require.NoError(t, os.MkdirAll(filepath.Join(dir, "root"), 0755), "create root dir")
-
 			spec := runtimespec.Spec{
 				Process: &runtimespec.Process{},
 				FreeBSD: &runtimespec.FreeBSD{
 					Jail: &runtimespec.FreeBSDJail{Host: mode},
 				},
 			}
-			configJSON, err := json.Marshal(spec)
-			require.NoError(t, err, "marshal config")
-			require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), configJSON, 0644), "write config")
-
 			id := "integ-test-host-" + string(mode)
-			exec.Command("runj", "delete", id).Run() // best-effort: clear any leftover
-			t.Cleanup(func() { exec.Command("runj", "delete", id).Run() })
-
-			if out, err := exec.Command("runj", "create", id, dir).CombinedOutput(); err != nil {
+			if out, err := createJail(t, id, spec); err != nil {
 				t.Fatalf("runj create: %v: %s", err, out)
 			}
 
