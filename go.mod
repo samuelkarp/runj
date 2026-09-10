@@ -6,7 +6,7 @@ require (
 	github.com/cheggaaa/pb/v3 v3.1.7
 	github.com/containerd/console v1.0.5
 	github.com/containerd/containerd/api v1.10.0
-	github.com/containerd/containerd/v2 v2.2.5
+	github.com/containerd/containerd/v2 v2.2.8
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/errdefs/pkg v0.3.0
 	github.com/containerd/fifo v1.1.0
@@ -24,7 +24,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sys v0.46.0
-	google.golang.org/protobuf v1.36.10
+	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
 	gotest.tools/v3 v3.5.2
 )
 
